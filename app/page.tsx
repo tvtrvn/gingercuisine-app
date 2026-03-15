@@ -1,65 +1,176 @@
-import Image from "next/image";
+import { menuItems } from "@/data/menu";
+import {
+  RESTAURANT_ADDRESS,
+  RESTAURANT_HOURS,
+  RESTAURANT_NAME,
+} from "@/lib/config";
+import { formatCurrency } from "@/lib/utils";
+import Link from "next/link";
+
+const featuredItems = menuItems.filter((item) => item.isFeatured).slice(0, 6);
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="space-y-12">
+      {/* Hero */}
+      <section className="grid gap-8 md:grid-cols-[3fr,2fr] md:items-center">
+        <div className="space-y-6">
+          <p className="text-sm uppercase tracking-[0.2em] text-emerald-700">
+            Modern Vietnamese Kitchen
           </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl md:text-5xl">
+            {RESTAURANT_NAME}
+          </h1>
+          <p className="max-w-xl text-base text-neutral-700 md:text-lg">
+            Warm, brothy bowls of pho, crisp bánh mì, and fresh vermicelli
+            bowls—made from family recipes, ready for easy pickup.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/order"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-600/30 transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+            >
+              Order Pickup
+            </Link>
+            <Link
+              href="/menu"
+              className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-6 py-3 text-sm font-semibold text-neutral-800 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2"
+            >
+              View Full Menu
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="relative hidden h-64 overflow-hidden rounded-3xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100 shadow-sm md:block">
+          <div className="absolute inset-6 rounded-3xl border border-white/60 bg-white/40 backdrop-blur-sm" />
+          <div className="absolute inset-10 flex flex-col justify-between text-sm text-neutral-800">
+            <p className="font-medium">
+              “Comforting pho and crispy bánh mì that taste like home.”
+            </p>
+            <p className="text-xs text-neutral-600">
+              Imagery placeholder – replace with restaurant photos later.
+            </p>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* Featured items */}
+      <section aria-labelledby="featured-heading" className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h2
+            id="featured-heading"
+            className="text-lg font-semibold tracking-tight text-neutral-900"
+          >
+            Featured dishes
+          </h2>
+          <Link
+            href="/menu"
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+          >
+            See all
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {featuredItems.map((item) => (
+            <article
+              key={item.id}
+              className="flex flex-col rounded-2xl border border-amber-100 bg-white p-4 shadow-sm"
+            >
+              <div className="mb-3 h-28 rounded-xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100" />
+              <h3 className="text-sm font-semibold text-neutral-900">
+                {item.name}
+              </h3>
+              {item.vietnameseName && (
+                <p className="text-xs text-emerald-700">
+                  {item.vietnameseName}
+                </p>
+              )}
+              <p className="mt-2 line-clamp-3 text-xs text-neutral-600">
+                {item.description}
+              </p>
+              <p className="mt-3 text-sm font-semibold text-neutral-900">
+                {formatCurrency(item.price)}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section
+        aria-labelledby="testimonials-heading"
+        className="space-y-4 rounded-3xl bg-white p-6 shadow-sm"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <h2
+            id="testimonials-heading"
+            className="text-lg font-semibold tracking-tight text-neutral-900"
+          >
+            Guests are saying
+          </h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <figure className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+            <blockquote className="text-sm text-neutral-700">
+              “Best pho in the neighborhood. Broth is rich without being heavy.”
+            </blockquote>
+            <figcaption className="mt-3 text-xs font-medium text-neutral-600">
+              — Happy regular
+            </figcaption>
+          </figure>
+          <figure className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+            <blockquote className="text-sm text-neutral-700">
+              “Super easy to order pickup on my way home from work.”
+            </blockquote>
+            <figcaption className="mt-3 text-xs font-medium text-neutral-600">
+              — Weeknight diner
+            </figcaption>
+          </figure>
+          <figure className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+            <blockquote className="text-sm text-neutral-700">
+              “Fresh herbs, crispy baguettes, and very friendly family service.”
+            </blockquote>
+            <figcaption className="mt-3 text-xs font-medium text-neutral-600">
+              — Bánh mì fan
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+
+      {/* Find us strip */}
+      <section
+        aria-labelledby="find-us-heading"
+        className="grid gap-6 rounded-3xl bg-emerald-950 px-5 py-6 text-emerald-50 sm:grid-cols-[3fr,2fr] sm:px-8"
+      >
+        <div className="space-y-2">
+          <h2
+            id="find-us-heading"
+            className="text-lg font-semibold tracking-tight"
+          >
+            Find us
+          </h2>
+          <p className="text-sm text-emerald-100">{RESTAURANT_ADDRESS}</p>
+          <p className="text-sm text-emerald-100">
+            Hours: <span className="font-medium">{RESTAURANT_HOURS}</span>
+          </p>
+          <Link
+            href="/location"
+            className="mt-2 inline-flex text-sm font-semibold text-amber-200 hover:text-amber-100"
+          >
+            View full map &amp; hours →
+          </Link>
+        </div>
+        <div className="h-40 overflow-hidden rounded-2xl border border-emerald-700 bg-emerald-900">
+          <iframe
+            title="Map to restaurant"
+            aria-label="Map showing restaurant location"
+            className="h-full w-full"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2886.172402872174!2d-79.38362402376649!3d43.66538415164262!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x882b34b3284c5cf1%3A0x514b5f0ea077388a!2sPho%20Ginger!5e0!3m2!1sen!2sca!4v1772558773033!5m2!1sen!2sca"
+          ></iframe>
+        </div>
+      </section>
     </div>
   );
 }
+

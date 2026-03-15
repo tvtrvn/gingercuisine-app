@@ -1,0 +1,47 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  orderCode         String    @unique
+  stripeSessionId   String?   @unique
+
+  paymentMethod     String    // "pay_at_pickup" | "stripe"
+  paymentStatus     String    // "pending" | "paid" | "failed"
+  status            String    // "new" | "in_progress" | "completed" | "cancelled"
+
+  pickupName        String
+  pickupPhone       String
+  pickupEmail       String?
+  pickupTimeOption  String
+  pickupTime        String?
+
+  itemsJson         String    // JSON.stringify(cart items)
+  subtotal          Float
+  tax               Float
+  total             Float
+
+  webhookProcessedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model StripePendingOrder {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  stripeSessionId String   @unique
+  orderCode       String   @unique
+  payloadJson     String
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+}
