@@ -38,10 +38,12 @@ function dbToOrder(record: {
 }
 
 export async function addOrder(order: Order, stripeSessionId?: string) {
+  const stripeSessionData = stripeSessionId ? { stripeSessionId } : {};
+
   await prisma.order.upsert({
     where: { orderCode: order.id },
     update: {
-      stripeSessionId: stripeSessionId ?? undefined,
+      ...stripeSessionData,
       paymentStatus: order.paymentMethod === "stripe" ? "paid" : "pending",
       status: order.status,
       itemsJson: JSON.stringify(order.items),
@@ -58,7 +60,7 @@ export async function addOrder(order: Order, stripeSessionId?: string) {
     },
     create: {
       orderCode: order.id,
-      stripeSessionId: stripeSessionId ?? null,
+      ...stripeSessionData,
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentMethod === "stripe" ? "paid" : "pending",
       status: order.status,

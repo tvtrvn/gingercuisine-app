@@ -15,7 +15,7 @@ datasource db {
 model Order {
   id                String    @id @default(auto()) @map("_id") @db.ObjectId
   orderCode         String    @unique
-  stripeSessionId   String?   @unique
+  stripeSessionId   String?
 
   paymentMethod     String    // "pay_at_pickup" | "stripe"
   paymentStatus     String    // "pending" | "paid" | "failed"
