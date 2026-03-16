@@ -12,6 +12,7 @@ import {
   SizeOption,
 } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import Image from "next/image";
 
 
 import { useMemo, useState } from "react";
@@ -180,7 +181,19 @@ export default function MenuPage() {
                     key={item.id}
                     className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm"
                   >
-                    <div className="hidden h-24 w-24 flex-shrink-0 rounded-xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100 sm:block" />
+                    <div className="hidden h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl sm:block">
+                      {item.image ? (
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          width={96}
+                          height={96}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100" />
+                      )}
+                    </div>
                     <div className="flex flex-1 flex-col">
                       <div className="flex items-start justify-between gap-2">
                         <div>
