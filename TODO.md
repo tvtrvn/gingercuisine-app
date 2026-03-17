@@ -13,6 +13,12 @@ Core ordering flow is live and working:
 ---
 
 ## Next (Admin Operations)
+- [ ] Insert all pricing and modifications for each menu item
+- [ ] Add catering to Navbar and create a page with the specifications
+- [ ] Insert all photos and modify to fit
+- [ ] Incorporate pho making video somehow to the home page
+- [ ] Advertise promos accordingly - play vinahouse when opened
+
 
 - [ ] Build `/admin/orders` dashboard (kitchen view)
 - [ ] Auto-refresh orders every 3-5 seconds (polling fallback)
