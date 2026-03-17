@@ -18,6 +18,7 @@ Core ordering flow is live and working:
 - [ ] Insert all photos and modify to fit
 - [ ] Incorporate pho making video somehow to the home page
 - [ ] Advertise promos accordingly - play vinahouse when opened
+- [ ] Add email confirmation to customer via SMS or email
 
 
 - [ ] Build `/admin/orders` dashboard (kitchen view)
