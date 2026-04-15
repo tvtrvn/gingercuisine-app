@@ -1,3 +1,4 @@
+import { PaperMenuModal } from "@/components/ui/PaperMenuModal";
 import { menuItems } from "@/data/menu";
 import {
   RESTAURANT_ADDRESS,
@@ -5,6 +6,7 @@ import {
   RESTAURANT_NAME,
 } from "@/lib/config";
 import { formatCurrency } from "@/lib/utils";
+import Image from "next/image";
 import Link from "next/link";
 
 const featuredItems = menuItems.filter((item) => item.isFeatured).slice(0, 6);
@@ -38,16 +40,20 @@ export default function Home() {
             >
               View Full Menu
             </Link>
+            <PaperMenuModal />
           </div>
         </div>
-        <div className="relative hidden h-64 overflow-hidden rounded-3xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100 shadow-sm md:block">
-          <div className="absolute inset-6 rounded-3xl border border-white/60 bg-white/40 backdrop-blur-sm" />
-          <div className="absolute inset-10 flex flex-col justify-between text-sm text-neutral-800">
-            <p className="font-medium">
-              “Comforting pho and crispy bánh mì that taste like home.”
-            </p>
-            <p className="text-xs text-neutral-600">
-              Imagery placeholder – replace with restaurant photos later.
+        <div className="relative hidden h-64 overflow-hidden rounded-3xl shadow-sm md:block">
+          <Image
+            src="/images/Ginger-Food-Photos/general food image.webp"
+            alt="Ginger Cuisine restaurant food"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/45 to-transparent px-4 pb-4 pt-20 sm:px-5 sm:pb-5">
+            <p className="max-w-sm text-sm font-semibold leading-snug text-white drop-shadow-sm sm:text-base">
+              &ldquo;Comforting pho and crispy bánh mì that taste like home.&rdquo;
             </p>
           </div>
         </div>
@@ -75,7 +81,17 @@ export default function Home() {
               key={item.id}
               className="flex flex-col rounded-2xl border border-amber-100 bg-white p-4 shadow-sm"
             >
-              <div className="mb-3 h-28 rounded-xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100" />
+              <div className="relative mb-3 h-28 overflow-hidden rounded-xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100">
+                {item.image && (
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                    sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
+                  />
+                )}
+              </div>
               <h3 className="text-sm font-semibold text-neutral-900">
                 {item.name}
               </h3>

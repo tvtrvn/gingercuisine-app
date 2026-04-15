@@ -17,6 +17,9 @@ export default function OrderPage() {
   const [selectedAddonsByItem, setSelectedAddonsByItem] = useState<
     Record<string, string[]>
   >({});
+  const [selectedFlavorByItem, setSelectedFlavorByItem] = useState<
+    Record<string, string>
+  >({});
 
   const featuredItems = useMemo(
     () => menuItems.filter((item) => item.isFeatured).slice(0, 8),
@@ -36,19 +39,27 @@ export default function OrderPage() {
     return item.availableAddons.filter((addon) => selectedIds.includes(addon.id));
   }
 
+  function getSelectedFlavor(item: MenuItem): AddonOption | undefined {
+    if (!item.availableFlavors || item.availableFlavors.length === 0) return undefined;
+    const flavorId = selectedFlavorByItem[item.id] || item.availableFlavors[0].id;
+    return item.availableFlavors.find((f) => f.id === flavorId);
+  }
+
   function getDisplayPrice(item: MenuItem) {
     const sizeDelta = getSelectedSize(item)?.priceDelta ?? 0;
     const addonsTotal = getSelectedAddons(item).reduce(
       (sum, addon) => sum + addon.price,
       0,
     );
-    return item.price + sizeDelta + addonsTotal;
+    const flavorPrice = getSelectedFlavor(item)?.price ?? 0;
+    return item.price + sizeDelta + addonsTotal + flavorPrice;
   }
 
   function handleAddToCart(item: MenuItem) {
     addItem(item, {
       selectedSize: getSelectedSize(item),
       selectedAddons: getSelectedAddons(item),
+      selectedFlavor: getSelectedFlavor(item),
     });
   }
 
@@ -138,6 +149,37 @@ export default function OrderPage() {
                           {size.label}
                           {size.priceDelta > 0
                             ? ` (+${formatCurrency(size.priceDelta)})`
+                            : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {item.availableFlavors && item.availableFlavors.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {item.availableFlavors.map((flavor) => {
+                      const selected =
+                        (selectedFlavorByItem[item.id] ||
+                          item.availableFlavors?.[0]?.id) === flavor.id;
+                      return (
+                        <button
+                          key={flavor.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedFlavorByItem((prev) => ({
+                              ...prev,
+                              [item.id]: flavor.id,
+                            }))
+                          }
+                          className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                            selected
+                              ? "bg-emerald-600 text-white"
+                              : "bg-neutral-100 text-neutral-700"
+                          }`}
+                        >
+                          {flavor.name}
+                          {flavor.price > 0
+                            ? ` (+${formatCurrency(flavor.price)})`
                             : ""}
                         </button>
                       );

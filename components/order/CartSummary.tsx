@@ -41,6 +41,11 @@ export function CartSummary() {
                 <p className="text-xs text-neutral-600">
                   {formatCurrency(effectiveUnitPrice)} each
                 </p>
+                {item.selectedFlavor && (
+                  <p className="mt-1 text-xs text-neutral-600">
+                    Flavor: {item.selectedFlavor.name}
+                  </p>
+                )}
                 {item.selectedSize && (
                   <p className="mt-1 text-xs text-neutral-600">
                     Size: {item.selectedSize.label}

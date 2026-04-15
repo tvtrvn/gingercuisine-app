@@ -3,13 +3,14 @@
 "use client";
 
 import { useCart } from "@/components/cart/cart-context";
+import { PaperMenuModal } from "@/components/ui/PaperMenuModal";
 import { menuCategories, menuItems } from "@/data/menu";
 import {
-  AddonOption,
-  DietaryTag,
-  MenuCategoryId,
-  MenuItem,
-  SizeOption,
+    AddonOption,
+    DietaryTag,
+    MenuCategoryId,
+    MenuItem,
+    SizeOption,
 } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import Image from "next/image";
@@ -34,6 +35,18 @@ export default function MenuPage() {
   const [selectedAddonsByItem, setSelectedAddonsByItem] = useState<
     Record<string, string[]>
   >({});
+  const [selectedFlavorByItem, setSelectedFlavorByItem] = useState<
+    Record<string, string>
+  >({});
+
+  function getSelectedFlavor(item: MenuItem): AddonOption | undefined {
+    if (!item.availableFlavors || item.availableFlavors.length === 0) {
+      return undefined;
+    }
+    const flavorId =
+      selectedFlavorByItem[item.id] || item.availableFlavors[0].id;
+    return item.availableFlavors.find((f) => f.id === flavorId);
+  }
 
   function getSelectedSize(item: MenuItem): SizeOption | undefined {
     if (!item.availableSizes || item.availableSizes.length === 0) {
@@ -60,13 +73,15 @@ export default function MenuPage() {
       (sum, addon) => sum + addon.price,
       0,
     );
-    return item.price + sizeDelta + addonTotal;
+    const flavorPrice = getSelectedFlavor(item)?.price ?? 0;
+    return item.price + sizeDelta + addonTotal + flavorPrice;
   }
 
   function handleAddToCart(item: MenuItem) {
     addItem(item, {
       selectedSize: getSelectedSize(item),
       selectedAddons: getSelectedAddons(item),
+      selectedFlavor: getSelectedFlavor(item),
     });
   }
 
@@ -104,6 +119,7 @@ export default function MenuPage() {
           Browse our full Vietnamese menu. Use search and filters to quickly
           find your favorite pho, bánh mì, vermicelli bowls, and more.
         </p>
+        <PaperMenuModal />
       </header>
 
       {/* Filters */}
@@ -243,6 +259,42 @@ export default function MenuPage() {
                                   {size.label}
                                   {size.priceDelta > 0
                                     ? ` (+${formatCurrency(size.priceDelta)})`
+                                    : ""}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {item.availableFlavors && item.availableFlavors.length > 0 && (
+                        <div className="mt-3">
+                          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-600">
+                            Flavor
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {item.availableFlavors.map((flavor) => {
+                              const isSelected =
+                                (selectedFlavorByItem[item.id] ||
+                                  item.availableFlavors?.[0]?.id) === flavor.id;
+                              return (
+                                <button
+                                  key={flavor.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedFlavorByItem((prev) => ({
+                                      ...prev,
+                                      [item.id]: flavor.id,
+                                    }))
+                                  }
+                                  className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                                    isSelected
+                                      ? "bg-emerald-600 text-white"
+                                      : "bg-neutral-100 text-neutral-700"
+                                  }`}
+                                >
+                                  {flavor.name}
+                                  {flavor.price > 0
+                                    ? ` (+${formatCurrency(flavor.price)})`
                                     : ""}
                                 </button>
                               );

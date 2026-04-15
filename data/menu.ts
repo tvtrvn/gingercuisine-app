@@ -1,21 +1,103 @@
 import { MenuCategory, MenuItem } from "@/lib/types";
 
+// add seafood options to all soups
+// add curry chicken and curry lamb to all dishes
+
+// ── Image paths ──────────────────────────────────────────────────────
+// Central map so you can swap any photo in one place.
+// Keys = menu item id, values = path under /public.
+const IMG = "/images/Ginger-Food-Photos";
+export const MENU_IMAGES: Record<string, string> = {
+  // Pho
+  "pho-beef":                       `${IMG}/rare-beef-pho.jpg`,
+  "pho-rarebeef-AAA":               `${IMG}/rare-beef-pho-close.jpg`,
+  "pho-oxtail-beef-balls":          `${IMG}/oxtail-beefball-pho.webp`,
+  "pho-special":                    `${IMG}/rare-beef-pho-far.jpg`,
+  "pho-tofu-vegetable":             `${IMG}/tofu-veggie-pho.jpg`,
+  // Tom Yum
+  "tom-yum-seafood":                `${IMG}/seafood-tom-yum.jpg`,
+  // Banh Mi
+  "banh-mi-chicken":                `${IMG}/chicken-banhmi.jpg`,
+  "banh-mi-beef":                   `${IMG}/beef-banhmi.jpg`,
+  "banh-mi-grilled-pork":           `${IMG}/pork-banhmi.webp`,
+  // Rice Plates
+  "rice-grilled-chicken":           `${IMG}/grilled-chicken-rice.jpg`,
+  "rice-curry-chicken":             `${IMG}/curry-chicken-rice.webp`,
+  "rice-curry-lamb":                `${IMG}/curry-lamb-rice.webp`,
+  "rice-curry-chicken-beef":        `${IMG}/curry-chicken-beef.jpg`,
+  "rice-grilled-chicken-pork-chop": `${IMG}/chicken-porkchop-rice.jpg`,
+  "rice-grilled-porkchop-and-coconut-shrimp": `${IMG}/coco-shrimp-porkchop-rice.webp`,
+  "rice-grilled-chicken-beef-shrimp-roll":    `${IMG}/chicken-beef-shrimp-roll-rice.jpg`,
+  // Specialty Plates
+  "specialty-chicken-shrimp-pad-thai":       `${IMG}/chicken-shrimp-padthai.jpg`,
+  "specialty-chicken-beef-teriyaki-udon":    `${IMG}/chicken-beef-udon.jpg`,
+  "specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle": `${IMG}/specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle.jpg`,
+  "specialty-tofu-mixed-vegetable-with-crispy-noodle":                  `${IMG}/tofu-veggie-crispy-noodle.jpg`,
+  "specialty-lemongrass-tofu-mixed-vegetable-with-pad-thai":            `${IMG}/lemongrass-tofu-mixed-vegetable-with-pad-thai.webp`,
+  "specialty-shrimp-fried-rice":     `${IMG}/shrimp-fried-rice.jpg`,
+  // Salmon & Fried Fish
+  "pan-fried-salmon-mango-salad":    `${IMG}/pan-fried-salmon-mango-salad.jpg`,
+  "teriyaki-salmon-mixed-vegetable-rice": `${IMG}/salmon-teriyaki.webp`,
+  "fried-fish-mango-salad":          `${IMG}/fried-fish-mango.jpg`,
+  "fish-chips":                      `${IMG}/fish-chips.webp`,
+  // Vermicelli
+  "vermicelli-grilled-chicken":      `${IMG}/chicken-vermicelli.jpg`,
+  "vermicelli-grilled-shrimp":       `${IMG}/shrimp-vermicelli.webp`,
+  // Appetizers
+  "app-chicken-spring-roll":         `${IMG}/cha-gio-ga.jpg`,
+  "app-chicken-salad-rolls":         `${IMG}/chicken-goi-cuon.webp`,
+  "app-shrimp-salad-rolls":          `${IMG}/shrimp-goi-cuon.webp`,
+  "app-butter-lime-chicken-wings":   `${IMG}/garlic-butter-lime-wings.jpg`,
+  // Starter Soups
+  "starter-chicken-coconut-mushroom-soup": `${IMG}/chicken-coco-mushroom-better.webp`,
+  "starter-wonton-soup":             `${IMG}/wonton-soup.jpg`,
+  // Mango Salad
+  "chicken-shrimp-mango-salad":      `${IMG}/chicken-shrimp-mango.webp`,
+  // Drinks
+  "drink-iced-coffee":               `${IMG}/cafe-sua-da.jpg`,
+  "drink-fruit-smoothie":            `${IMG}/smoothies.jpg`,
+  "drink-bubble-tea":                `${IMG}/boba.webp`,
+  // Desserts
+  "dessert-cake-slice":              `${IMG}/white-choco-rasb-cheesecake.webp`,
+};
+
 export const SOUP_ADDONS = [
-  { id: "addon-meat", name: "Meat", price: 2.00 },
-  { id: "addon-oxtail", name: "Oxtail", price: 3.00 },
-  { id: "addon-vegetable", name: "Vegetable", price: 1.00 },
-  { id: "addon-tofu", name: "Tofu", price: 1.00 },
-  { id: "addon-grain", name: "Grain", price: 1.00 },
-  { id: "addon-soup", name: "Soup", price: 1.00 },
+  { id: "addon-meat", name: "Meat", price: 7.00 },
+  { id: "addon-oxtail", name: "Oxtail", price: 8.00 },
+  { id: "addon-beef-balls", name: "Beef Balls", price: 6.00 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.00 },
+  { id: "addon-tofu", name: "Tofu", price: 5.00 },
+  { id: "addon-grain", name: "Grain", price: 4.00 },
+];
+
+export const SOUP_ADDONS_SEAFOOD = [
+  { id: "shrimp", name: "Shrimp", price: 8.00 }, // shrimp, squid, mussels, and crab meat
+  { id: "squid", name: "Squid", price: 8.00 }, // shrimp, squid, mussels, and crab meat
+  { id: "mussels", name: "Mussels", price: 8.00 }, // shrimp, squid, mussels, and crab meat
+  { id: "crab-meat", name: "Crab Meat", price: 8.00 }, // shrimp, squid, mussels, and crab meat
 ];
 
 export const DISH_ADDONS = [
-  { id: "addon-meat", name: "Meat", price: 2.00 },
+  { id: "addon-meat", name: "Meat", price: 7.00 },
   { id: "addon-egg", name: "Egg", price: 2.00 },
-  { id: "addon-oxtail", name: "Oxtail", price: 3.00 },
-  { id: "addon-vegetable", name: "Vegetable", price: 1.00 },
-  { id: "addon-tofu", name: "Tofu", price: 1.00 },
-  { id: "addon-grain", name: "Grain", price: 1.00 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.00 },
+  { id: "addon-tofu", name: "Tofu", price: 5.00 },
+  { id: "addon-grain", name: "Grain", price: 4.00 },
+  { id: "fried-rice", name: "Fried Rice", price: 5.00 },
+  { id: "addon-shrimp", name: "Shrimp", price: 8.00 },
+];
+
+export const DISH_ADDONS_SPECIAL = [
+  { id: "curry-chicken", name: "Curry Chicken", price: 6.00 },
+  { id: "curry-lamb", name: "Curry Lamb", price: 8.95 },
+]
+
+export const SMOOTHIE_FLAVORS = [
+  { id: "strawberry", name: "Strawberry", price: 0.00 },
+  { id: "banana", name: "Banana", price: 0.00 },
+  { id: "mango", name: "Mango", price: 0.00 },
+  { id: "pineapple", name: "Pineapple", price: 0.00 },
+  { id: "avocado", name: "Avocado", price: 0.00 },
 ];
 
 export const SOUP_SIZE_OPTIONS = [
@@ -24,7 +106,11 @@ export const SOUP_SIZE_OPTIONS = [
 ];
 
 export const LARGE_ONLY_SIZE_OPTION = [
-  { id: "large", label: "Large", priceDelta: 2 },
+  { id: "large", label: "Large", priceDelta: 1.45 }, //seafood and õxtail price delta 2$ total for Large
+];
+
+export const LARGE_ONLY_SIZE_OPTION_SEAFOOD_AND_OXT_PRICE_DELTA = [
+  { id: "large", label: "Large", priceDelta: 2 }, //seafood and õxtail price delta 2$ total for Large
 ];
 
 export const menuCategories: MenuCategory[] = [
@@ -90,16 +176,16 @@ export const menuCategories: MenuCategory[] = [
   },
 ];
 
-export const menuItems: MenuItem[] = [
+export const menuItems: MenuItem[] = ([
   // Pho
   {
-    id: "pho-beef",
+    id: "pho-beef", // add rare or brisket option or both
     categoryId: "pho",
     name: "Classic Beef Pho",
     vietnameseName: "Phở Bò",
     description:
       "Rice noodles in aromatic beef broth with rare beef or brisket or both, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 17.5,
+    price: 15.5,
     tags: [],
     isFeatured: true,
     availableAddons: SOUP_ADDONS,
@@ -113,7 +199,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Phở Bò Tái AAA (L)",
     description:
       "Rice noodles in aromatic beef broth with AAA grade rare beef, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 19.0,
+    price: 20.95,
     tags: [],
     availableAddons: SOUP_ADDONS,
     availableSizes: LARGE_ONLY_SIZE_OPTION,
@@ -126,7 +212,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Phở Đuôi Bò & Bò Viên",
     description:
       "Rice noodles in aromatic beef broth with oxtail and beef balls, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 19.0,
+    price: 16.95,
     tags: [],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -139,7 +225,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Phở Đặc Biệt",
     description:
       "Signature pho with rare beef, brisket, oxtail, chicken, and beef balls in rich broth topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 21.0,
+    price: 19.95,
     tags: [],
     isFeatured: true,
     availableAddons: SOUP_ADDONS,
@@ -151,7 +237,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Phở Gà",
     description:
       "Rice noodles in aromatic beef broth with steamed chicken or grilled chicken topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 16.5,
+    price: 15.5,
     tags: [],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -164,7 +250,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Phở Rau Cải & Đậu Hũ",
     description:
     "Rice noodles in aromatic beef broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 16.0,
+    price: 15.5,
     tags: [],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -177,7 +263,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Phở Chay",
     description:
       "Rice noodles in aromatic vegetable broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 17.0,
+    price: 15.5,
     tags: ["vegan"],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -191,7 +277,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Tom Yum Hải Sản",
     description:
       "Rice noodles in aromatic hot and sour broth with shrimp, squid, clams, and mushrooms, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 17.5,
+    price: 16.95,
     tags: [],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -204,7 +290,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Tom Yum Gà",
     description:
       "Rice noodles in aromatic hot and sour broth with steamed chicken, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 18.0,
+    price: 15.5,
     tags: [],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -217,7 +303,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Tom Yum Đậu Hũ & Rau Cải",
     description:
       "Rice noodles in aromatic hot and sour broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 17.5,
+    price: 15.5,
     tags: [],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -230,7 +316,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Tom Yum Chay",
     description:
       "Rice noodles in aromatic vegetable hot and sour broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
-    price: 17.5,
+    price: 15.5,
     tags: ["vegan"],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
@@ -245,7 +331,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bánh Mì Thịt Gà Nướng",
     description:
       "Grilled chicken with homemade mayonnaise, soy sauce, pickled carrots, daikon, cucumber, tomatoes and cilantro.",
-    price: 11.5,
+    price: 8.95,
     tags: [],
     isFeatured: true,
   },
@@ -256,7 +342,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bánh Mì Thịt Bò Nướng",
     description:
       "Grilled beef with homemade mayonnaise, soy sauce, pickled carrots, daikon, cucumber, tomatoes and cilantro.",
-    price: 11.5,
+    price: 8.95,
     tags: [],
   },
   {
@@ -266,7 +352,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bánh Mì Thịt Heo Nướng",
     description:
       "Chargrilled pork with homemade mayonnaise, soy sauce, pickled carrots, daikon, cucumber, tomatoes and cilantro.",
-    price: 12.5,
+    price: 8.95,
     tags: [],
   },
   {
@@ -276,7 +362,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bánh Mì Đậu Hũ Sả",
     description:
       "Crispy lemongrass tofu with homemade mayonnaise, soy sauce, pickled carrots, daikon, cucumber, tomatoes and cilantro.",
-    price: 11.5,
+    price: 8.95,
     tags: ["vegetarian"],
   },
   {
@@ -286,7 +372,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bánh Mì Thịt Ba Rọi",
     description:
       "Slow cooked pork belly with homemade mayonnaise, soy sauce, pickled carrots, daikon, cucumber, tomatoes and cilantro.",
-    price: 12.5,
+    price: 8.95,
     tags: [],
   },
 
@@ -297,8 +383,8 @@ export const menuItems: MenuItem[] = [
     name: "Grilled Pork Chop Rice Plate",
     vietnameseName: "Cơm Sườn Nướng",
     description:
-      "Marinated pork chop over jasmine rice and bokchoy.",
-    price: 19.0,
+      "Marinated pork chop over jasmine rice, bokchoy, and fish sauce.",
+    price: 17.5,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -309,7 +395,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cơm Gà Nướng",
     description:
       "Grilled chicken with jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 16.25,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -320,7 +406,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cơm Gà Nướng Xốt Cay",
     description:
       "Spicy grilled chicken with jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 16.25,
     tags: ["spicy"],
     availableAddons: DISH_ADDONS,
   },
@@ -331,7 +417,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cơm Bò Nướng Sả",
     description:
       "Grilled lemongrass beef with jasmine rice and bokchoy.",
-    price: 22.0,
+    price: 16.25,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -342,29 +428,29 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cơm Cà ri Gà",
     description:
       "Curry chicken with jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 16.25,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
   {
     id: "rice-grilled-beef-ribs",
     categoryId: "rice-plates",
-    name: "Grilled Beef RibsRice Plate",
+    name: "Grilled Beef Ribs Rice Plate",
     vietnameseName: "Cơm Sườn Bò Nướng",
     description:
       "Grilled beef ribs with jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 17.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
   {
-    id: "rice-grilled-shrimp",
+    id: "rice-grilled-porkchop-and-coconut-shrimp",
     categoryId: "rice-plates",
     name: "Grilled Shrimp Rice Plate",
-    vietnameseName: "Cơm Tôm Nướng",
+    vietnameseName: "Cơm Sườn Tôm Rim Nước Dưa",
     description:
       "Grilled shrimp with jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 17.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -374,8 +460,8 @@ export const menuItems: MenuItem[] = [
     name: "Grilled Chicken & Pork Chop Rice Plate",
     vietnameseName: "Cơm Gà & Sườn Nướng",
     description:
-      "Grilled chicken & pork chop with jasmine rice and bokchoy.",
-    price: 18.5,
+      "Grilled chicken & pork chop with jasmine rice, bokchoy, and fish sauce.",
+    price: 17.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -386,7 +472,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cơm Cà ri Dê",
     description:
       "Curry lamb with jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 19.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -397,7 +483,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cơm Cà ri Gà & Bò",
     description:
       "Curry chicken & beef with jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 17.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -408,7 +494,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cơm Thập cẩm",
     description:
       "Grilled chicken & beef & shrimp & crispy chicken spring roll with fish sauce and jasmine rice and bokchoy.",
-    price: 18.5,
+    price: 18.95,
     tags: [],
     isFeatured: true,
     availableAddons: DISH_ADDONS,
@@ -421,7 +507,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Pad Thai Gà & Tôm",
     description:
       "Grilled chicken & shrimp pad thai with cabbage.",
-    price: 19.5,
+    price: 18.95,
     tags: [],
     isFeatured: true,
     availableAddons: DISH_ADDONS,
@@ -433,7 +519,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Udon Gà & Bò Teriyaki",
     description:
       "Grilled chicken & beef teriyaki udon with cabbage.",
-    price: 20.5,
+    price: 18.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -444,7 +530,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Mì Xào Giòn Thập Cẩm",
     description:
       "Assorted grilled meat, seafood, mixed vegetable with crispy noodle.",
-    price: 20.5,
+    price: 18.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -455,7 +541,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Mì Xào Giòn Đậu Hũ & Rau Cải",
     description:
       "Tofu & mixed vegetable with crispy noodle.",
-    price: 19.5,
+    price: 16.5,
     tags: ["vegetarian", "vegan"],
     availableAddons: DISH_ADDONS,
   },
@@ -477,7 +563,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cà ri Đậu Hũ & Rau Cải & Cà tím & Cơm gạo lứt",
     description:
       "Curry tofu & mixed vegetable & eggplant with brown rice.",
-    price: 19.5,
+    price: 16.5,
     tags: ["vegetarian", "vegan"],
     availableAddons: DISH_ADDONS,
   },
@@ -488,7 +574,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Com Chien Tôm",
     description:
       "Grilled shrimp fried rice with vegetables medley and eggs.",
-    price: 20.5,
+    price: 18.95,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -499,8 +585,8 @@ export const menuItems: MenuItem[] = [
     name: "Pan Fried Salmon & Mango Salad Plate",
     vietnameseName: "Cá Salmon & Gỏi Xoài",
     description:
-      "Pan fried salmon & mango salad with jasmine rice and bokchoy.",
-    price: 19.5,
+      "Pan fried salmon & mango salad with jasmine rice, bokchoy, and fish sauce.",
+    price: 20.95,
     tags: [],
   },
   {
@@ -510,7 +596,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cá Salmon Teriyaki & Rau Cải",
     description:
       "Teriyaki salmon & mixed vegetable with jasmine rice and bokchoy.",
-    price: 20.5,
+    price: 20.95,
     tags: [],
   },
   {
@@ -519,8 +605,8 @@ export const menuItems: MenuItem[] = [
     name: "Fried Fish & Mango Salad Plate",
     vietnameseName: "Cá Chiên & Gỏi Xoài",
     description:
-      "Golden fried fish & mango salad with jasmine rice and bokchoy.",
-    price: 20.5,
+      "Golden fried fish & mango salad with jasmine rice, bokchoy, and fish sauce.",
+    price: 18.95,
     tags: [],
   },
   {
@@ -530,7 +616,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cá Chiên Khoai Lang",
     description:
       "Golden fried fish with sweet potato fries and mixed mayonnaise.",
-    price: 20.5,
+    price: 15.95,
     tags: [],
   },
   
@@ -542,7 +628,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bún Gà Nướng Chả Giò",
     description:
     "Cool rice vermicelli with grilled chicken, crispy chicken spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and fish sauce.",
-    price: 18.0,
+    price: 17.75,
     tags: [],
     isFeatured: true,
     availableAddons: DISH_ADDONS,
@@ -554,7 +640,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bún Bò Nướng Chả Giò",
     description:
     "Cool rice vermicelli with grilled beef, crispy chicken spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and fish sauce.",
-    price: 19.5,
+    price: 17.75,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -565,7 +651,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bún Thịt Heo Nướng Chả Giò",
     description:
     "Cool rice vermicelli with grilled pork, crispy chicken spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and fish sauce.",
-    price: 18.0,
+    price: 17.75,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -576,7 +662,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bún Tôm Nướng Chả Giò",
     description:
     "Cool rice vermicelli with grilled shrimp, crispy chicken spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and fish sauce.",
-    price: 19.5,
+    price: 17.75,
     tags: [],
     availableAddons: DISH_ADDONS,
   },
@@ -587,7 +673,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Bún Đậu Hũ Sả Chả Giò",
     description:
     "Cool rice vermicelli with lemongrass tofu, crispy vegetable spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and soy sauce.",
-    price: 17.5,
+    price: 17.75,
     tags: ["vegetarian", "vegan"],
     availableAddons: DISH_ADDONS,
   },
@@ -600,7 +686,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Chả Giò Gà",
     description:
       "Golden-fried rice paper roll stuffed with chicken, veggies, and vermicelli, served with fish sauce.",
-    price: 10.5,
+    price: 2.95,
     tags: [],
   },
   {
@@ -610,7 +696,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Chả Giò Tôm",
     description:
       "Golden-fried wonton paper roll stuffed with shrimp and veggies served with fish sauce.",
-    price: 10.5,
+    price: 2.95,
     tags: [],
   },
   {
@@ -620,7 +706,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Chả Giò Chay",
     description:
       "Golden-fried rice paper roll stuffed with mixed vegetables and vermicelli, served with soy sauce.",
-    price: 10.5,
+    price: 2.95,
     tags: ["vegetarian", "vegan"],
   },
   {
@@ -630,7 +716,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Gỏi Cuốn Gà",
     description:
       "Rice paper roll stuffed with steamedchicken, herbs, and vermicelli, served with hoisin sauce.",
-    price: 11.0,
+    price: 3.50,
     tags: [],
   },
   {
@@ -640,7 +726,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Gỏi Cuốn Tôm",
     description:
       "Rice paper roll stuffed with steamed shrimp, herbs, and vermicelli, served with hoisin sauce.",
-    price: 11.0,
+    price: 3.50,
     tags: [],
   },
   {
@@ -650,7 +736,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Gỏi Cuốn Cua Bơ",
     description:
       "Rice paper roll stuffed with imitation crab, avocado, herbs, and vermicelli, served with hoisin sauce.",
-    price: 11.0,
+    price: 3.50,
     tags: [],
   },
   {
@@ -660,7 +746,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Gỏi Cuốn Đậu Hũ Bơ",
     description:
       "Rice paper roll stuffed with fried tofu, avocado, herbs, and vermicelli, served with soy sauce.",
-    price: 11.0,
+    price: 3.50,
     tags: ["vegetarian", "vegan"],
   },
   {
@@ -670,7 +756,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Gỏi Cuốn Củ Sắn",
     description:
       "Rice paper roll stuffed with jicama, herbs, and vermicelli, served with soy sauce.",
-    price: 11.0,
+    price: 3.50,
     tags: ["vegetarian", "vegan"],
   },
   {
@@ -680,7 +766,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Gỏi Cuốn Khoai Lang Bơ",
     description:
       "Rice paper roll stuffed with sweet potato, coconut sauce,avocado, herbs, and vermicelli, served with soy sauce.",
-    price: 11.0,
+    price: 3.50,
     tags: ["vegetarian", "vegan"],
   },
   {
@@ -690,7 +776,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Gỏi Cuốn Thịt Bò Nướng",
     description:
       "Rice paper roll stuffed with grilled beef, herbs, and vermicelli, served with fish sauce.",
-    price: 12.0,
+    price: 3.50,
     tags: [],
   },
   // Chicken Wings and Fries Appetizers
@@ -701,7 +787,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cánh Gà Nướng BBQ",
     description:
       "BBQ chicken wings with lettuce, pickled carrots, and daikon.",
-    price: 14.5,
+    price: 12.95,
     tags: [],
   },
   {
@@ -711,7 +797,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Cánh Gà Nướng Bơ Tỏi chanh xanh",
     description:
       "Garlic butter lime chicken wings with lettuce, pickled carrots, and daikon.",
-    price: 14.5,
+    price: 12.95,
     tags: [],
   },
   {
@@ -721,7 +807,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Khoai Lang Chiên",
     description:
       "Sweet potato fries with mixed mayonnaise.",
-    price: 12.5,
+    price: 8.95,
     tags: ["vegetarian"],
   },
   // Starter Soups
@@ -732,17 +818,17 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Súp Tom Kha Tôm",
     description:
       "Spicy and sour soup with shrimp, mushrooms, and herbs.",
-    price: 10.0,
+    price: 8.95,
     tags: [],
   },
   {
-    id: "starter-chicken-coconut-mushroom-soup",
+    id: "starter-chicken-coconut-mushroom-soup", // add a tofu option
     categoryId: "starter-soups",
     name: "Chicken Coconut Mushroom Soup",
     vietnameseName: "Súp Gà Nấu Nước Dừa",
     description:
       "Spicy and sour soup with chicken, mushrooms, and herbs.",
-    price: 10.0,
+    price: 8.95,
     tags: [],
   },
   {
@@ -752,7 +838,7 @@ export const menuItems: MenuItem[] = [
     vietnameseName: "Súp Wonton",
     description:
       "Wonton soup with wontons and lettuce.",
-    price: 10.0,
+    price: 8.95,
     tags: [],
   },
 
@@ -763,7 +849,7 @@ export const menuItems: MenuItem[] = [
     name: "Plain Mango Salad",
     vietnameseName: "Gỏi Xoài",
     description: "Fresh mango with fish sauce, mint, onions, cilantro and lime.",
-    price: 10.0,
+    price: 7.95,
     tags: [],
   },
   {
@@ -772,7 +858,7 @@ export const menuItems: MenuItem[] = [
     name: "Chicken & Shrimp Mango Salad",
     vietnameseName: "Gỏi Xoài Gà & Tôm",
     description: "Fresh mango with steamed chicken, shrimp, fish sauce, mint, onions, cilantro and lime.",
-    price: 11.5,
+    price: 10.95,
     tags: [],
   },
 
@@ -783,7 +869,7 @@ export const menuItems: MenuItem[] = [
     name: "Egg",
     vietnameseName: "Trứng",
     description: "Add fried egg",
-    price: 1.0,
+    price: 2.0,
   },
   {
     id: "side-rice",
@@ -791,7 +877,7 @@ export const menuItems: MenuItem[] = [
     name: "White Rice",
     vietnameseName: "Cơm Trắng",
     description: "Add white rice",
-    price: 1.0,
+    price: 4.0,
   },
   {
     id: "side-brown-rice",
@@ -799,7 +885,7 @@ export const menuItems: MenuItem[] = [
     name: "Brown Rice",
     vietnameseName: "Cơm Nâu",
     description: "Add brown rice",
-    price: 1.0,
+    price: 4.0,
   },
   {
     id: "side-mixed-vegetable",
@@ -807,7 +893,7 @@ export const menuItems: MenuItem[] = [
     name: "Mixed Vegetable",
     vietnameseName: "Rau Cải",
     description: "Add mixed vegetable",
-    price: 2.0,
+    price: 4.0,
   },
   {
     id: "side-pad-thai",
@@ -815,7 +901,7 @@ export const menuItems: MenuItem[] = [
     name: "Pad Thai",
     vietnameseName: "Pad Thai",
     description: "Add pad thai",
-    price: 2.0,
+    price: 4.0,
   },
   {
     id: "side-fried-rice",
@@ -823,15 +909,23 @@ export const menuItems: MenuItem[] = [
     name: "Fried Rice",
     vietnameseName: "Cơm Chiên",
     description: "Add fried rice",
-    price: 2.0,
+    price: 5.0,
   },
   {
-    id: "side-soup",
+    id: "side-soup-large",
     categoryId: "sides",
     name: "Soup",
     vietnameseName: "Súp",
     description: "Add Pho or Tom Yum or Vegetable soup",
-    price: 2.0,
+    price: 5.0,
+  },
+  {
+    id: "side-soup-small",
+    categoryId: "sides",
+    name: "Soup",
+    vietnameseName: "Súp",
+    description: "Add Pho or Tom Yum or Vegetable soup",
+    price: 4.0,
   },
   {
     id: "side-udon-noodle",
@@ -839,7 +933,7 @@ export const menuItems: MenuItem[] = [
     name: "Udon Noodle",
     vietnameseName: "Mì Udon",
     description: "Add udon noodle",
-    price: 2.0,
+    price: 4.0,
   },
   {
     id: "side-vermicelli",
@@ -847,18 +941,18 @@ export const menuItems: MenuItem[] = [
     name: "Vermicelli",
     vietnameseName: "Bún",
     description: "Add vermicelli",
-    price: 2.0,
+    price: 4.0,
   },
 
 
   // Drinks
   {
-    id: "drink-iced-coffee",
+    id: "drink-iced-coffee", // add hot coffee option
     categoryId: "drinks",
     name: "Vietnamese Iced Coffee",
     vietnameseName: "Cà Phê Sữa Đá",
     description: "Strong drip coffee with sweetened condensed milk over ice.",
-    price: 6.0,
+    price: 5.95,
     tags: ["vegetarian"],
     isFeatured: true,
   },
@@ -868,37 +962,84 @@ export const menuItems: MenuItem[] = [
     name: "Fruit Smoothie",
     vietnameseName: "Sinh Tố",
     description: "Fresh fruit smoothie with condensed milk, sugar, and ice. Available in mango, strawberry, pineapple, avocado and banana.",
-    price: 5.5,
+    price: 6.95,
     tags: ["vegetarian"],
+    availableFlavors: SMOOTHIE_FLAVORS,
   },
   {
-    id: "drink-hot-tea",
+    id: "drink-hot-tea", // add option
     categoryId: "drinks",
     name: "Hot Tea",
-    description: "Refreshing house-brewed tea. Available in black tea, green tea, and oolong tea.",
-    price: 5.0,
+    description: "Refreshing house-brewed tea. Available in black tea, jasmine green tea",
+    price: 1.95,
     tags: ["vegetarian", "vegan"],
   },
   {
+    id: "drink-bubble-tea",
+    categoryId: "drinks",
+    name: "Bubble Tea",
+    description: "Bubble tea with tapioca pearls.", // Mango, Strawberry,OG,Lychee,Peach,Honeydew,PassionFruit,Taro
+    price: 6.50,
+    tags: ["vegetarian", "vegan"],
+  },
+  {
+    /*
+    Coke, Diet Coke, Pepsi, Diet Pepsi, Fuze, RootBeer, Gingerale, Crush(Grape, CreamSoda,),
+    */
     id: "drink-soft-drink",
     categoryId: "drinks",
     name: "Soft Drink",
     description: "Assorted canned soft drinks and juices.",
-    price: 3.5,
+    price: 1.75,
+    tags: ["vegetarian", "vegan"],
+  },
+  { // orange apple
+    id: "drink-juice-bottle",
+    categoryId: "drinks",
+    name: "Juice Bottle",
+    description: "Assorted bottled juices.",
+    price: 2.0,
+    tags: ["vegetarian", "vegan"],
+  },
+  { // Mango, Strawnana, Guanabana, Pineapple Nectar, Strawbery, Guava
+    id: "drink-jumex",
+    categoryId: "drinks",
+    name: "Jumex",
+    description: "Available in mango, strawberry, pineapple, avocado and banana.",
+    price: 2.95,
+    tags: ["vegetarian", "vegan"],
+  },
+  {
+    id: "drink-coconut-water-small",
+    categoryId: "drinks",
+    name: "Jumex",
+    description: "Coconut water",
+    price: 2.95,
+    tags: ["vegetarian", "vegan"],
+  },
+  {
+    id: "drink-coconut-water-large",
+    categoryId: "drinks",
+    name: "Jumex",
+    description: "Coconut water",
+    price: 3.95,
     tags: ["vegetarian", "vegan"],
   },
 
   // Desserts
-  {
+  { // Wild Strawberries & Cream Cheese Cake, Godiva Double Chocolate Cheese Cake(+0.51), White Chocolate Raspberry Cheesecake, Mango Key Lime Cheesecake(+0.51), Red Velvet Cheesecake
     id: "dessert-cake-slice",
     categoryId: "desserts",
     name: "Cake Slice",
     vietnameseName: "Bánh Cake",
     description:
       "From the Cheesecake Factory.",
-    price: 8.0,
+    price: 6.99,
     tags: ["vegetarian"],
   },
 
-];
+] as MenuItem[]).map((item) => ({
+  ...item,
+  image: item.image ?? MENU_IMAGES[item.id],
+}));
 

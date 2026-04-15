@@ -34,6 +34,7 @@ export async function sendOrderEmail(order: Order) {
     .map(
       (item) => {
         const unitPrice = item.unitPrice ?? item.price;
+        const flavorText = item.selectedFlavor ? ` [Flavor: ${item.selectedFlavor.name}]` : "";
         const sizeText = item.selectedSize ? ` [Size: ${item.selectedSize.label}]` : "";
         const addonsText =
           item.selectedAddons && item.selectedAddons.length > 0
@@ -42,7 +43,7 @@ export async function sendOrderEmail(order: Order) {
                 .join(", ")}]`
             : "";
         const notesText = item.notes ? ` [Notes: ${item.notes}]` : "";
-        return `- ${item.quantity} x ${item.name} ($${unitPrice.toFixed(2)})${sizeText}${addonsText}${notesText}`;
+        return `- ${item.quantity} x ${item.name} ($${unitPrice.toFixed(2)})${flavorText}${sizeText}${addonsText}${notesText}`;
       },
     )
     .join("\n");

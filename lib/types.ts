@@ -46,6 +46,7 @@ export interface MenuItem {
   availableAddons?: AddonOption[];
   availableSizes?: SizeOption[];
   defaultSizeId?: string;
+  availableFlavors?: AddonOption[];  // reuse AddonOption shape
 }
 
 export interface CartItem {
@@ -59,6 +60,7 @@ export interface CartItem {
   notes?: string;
   selectedAddons?: AddonOption[];
   selectedSize?: SizeOption;
+  selectedFlavor?: AddonOption;  // single selection
 }
 
 export type PaymentMethod = "pay_at_pickup" | "stripe";
