@@ -2,13 +2,13 @@
 
 import type { AddonOption, CartItem, MenuItem, SizeOption } from "@/lib/types";
 import {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
+    createContext,
+    ReactNode,
+    useCallback,
+    useContext,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 
 interface CartContextValue {
@@ -18,6 +18,7 @@ interface CartContextValue {
     options?: {
       selectedAddons?: AddonOption[];
       selectedSize?: SizeOption;
+      selectedFlavor?: AddonOption;
     },
   ) => void;
   updateItemQuantity: (id: string, quantity: number) => void;
@@ -42,6 +43,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       options?: {
         selectedAddons?: AddonOption[];
         selectedSize?: SizeOption;
+        selectedFlavor?: AddonOption;
       },
     ) => {
       const availableSizes = menuItem.availableSizes ?? [];
@@ -50,17 +52,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         availableSizes.find((size) => size.id === menuItem.defaultSizeId) ||
         availableSizes[0];
       const selectedAddons = options?.selectedAddons ?? [];
+      const selectedFlavor = options?.selectedFlavor;
       const addonsTotal = selectedAddons.reduce(
         (sum, addon) => sum + addon.price,
         0,
       );
+      const flavorPrice = selectedFlavor?.price ?? 0;
       const unitPrice = Number(
-        (menuItem.price + (fallbackSize?.priceDelta ?? 0) + addonsTotal).toFixed(2),
+        (menuItem.price + (fallbackSize?.priceDelta ?? 0) + addonsTotal + flavorPrice).toFixed(2),
       );
       const lineSignature = JSON.stringify({
         menuItemId: menuItem.id,
         sizeId: fallbackSize?.id ?? null,
         addonIds: selectedAddons.map((addon) => addon.id).sort(),
+        flavorId: selectedFlavor?.id ?? null,
       });
 
       setItems((prev) => {
@@ -71,6 +76,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             addonIds: (item.selectedAddons ?? [])
               .map((addon) => addon.id)
               .sort(),
+            flavorId: item.selectedFlavor?.id ?? null,
           });
           return itemSignature === lineSignature;
         });
@@ -92,12 +98,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
           quantity: 1,
           selectedAddons,
           selectedSize: fallbackSize,
+          selectedFlavor,
         };
         return [...prev, newItem];
       });
 
       const selectedSizeText = fallbackSize ? ` (${fallbackSize.label})` : "";
-      setLastAddedMessage(`${menuItem.name}${selectedSizeText} added to cart`);
+      const flavorText = selectedFlavor ? ` – ${selectedFlavor.name}` : "";
+      setLastAddedMessage(`${menuItem.name}${flavorText}${selectedSizeText} added to cart`);
       if (clearMessageTimerRef.current) {
         clearTimeout(clearMessageTimerRef.current);
       }

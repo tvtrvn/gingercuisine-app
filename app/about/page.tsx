@@ -1,3 +1,14 @@
+import Image from "next/image";
+
+// Edit this array to add, remove, or reorder gallery photos.
+const galleryPhotos = [
+  { src: "/images/environment-photos/interior seating.jpg", alt: "Interior seating at Ginger Cuisine" },
+  { src: "/images/environment-photos/pride-parade.webp", alt: "Ginger Cuisine at the Pride parade" },
+  { src: "/images/Ginger-Food-Photos/rare-beef-pho-far.jpg", alt: "Classic beef pho" },
+  { src: "/images/Ginger-Food-Photos/far-beef-banhmi copy.jpg", alt: "Beef bánh mì" },
+  { src: "/images/Ginger-Food-Photos/chicken-shrimp-padthai.jpg", alt: "Chicken & shrimp pad thai" },
+  { src: "/images/Ginger-Food-Photos/garlic-butter-lime-wings.jpg", alt: "Garlic butter lime wings" },
+];
 
 export default function AboutPage() {
   return (
@@ -29,16 +40,23 @@ export default function AboutPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold tracking-tight text-neutral-900">
-          Photo gallery (placeholders)
+          Photo gallery
         </h2>
-        <p className="text-xs text-neutral-600">
-          Replace these blocks with real photos of your family, dining room,
-          kitchen, and favorite dishes.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="h-32 rounded-2xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100" />
-          <div className="h-32 rounded-2xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100" />
-          <div className="h-32 rounded-2xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {galleryPhotos.map((photo) => (
+            <div
+              key={photo.src}
+              className="relative h-48 overflow-hidden rounded-2xl bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100"
+            >
+              <Image
+                src={photo.src}
+                alt={photo.alt}
+                fill
+                className="object-cover"
+                sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
+              />
+            </div>
+          ))}
         </div>
       </section>
     </div>

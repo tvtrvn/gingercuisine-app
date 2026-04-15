@@ -49,7 +49,9 @@ export async function POST(req: NextRequest) {
           currency: CURRENCY.toLowerCase(),
           unit_amount: Math.round((item.unitPrice ?? item.price) * 100),
           product_data: {
-            name: item.name,
+            name: item.selectedFlavor
+              ? `${item.name} (${item.selectedFlavor.name})`
+              : item.name,
           },
         },
       })),

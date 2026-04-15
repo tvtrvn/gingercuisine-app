@@ -72,6 +72,11 @@ export default async function ConfirmationPage({
                       {formatCurrency(unitPrice * item.quantity, CURRENCY)}
                     </span>
                   </div>
+                  {item.selectedFlavor && (
+                    <p className="mt-1 text-xs text-neutral-600">
+                      Flavor: {item.selectedFlavor.name}
+                    </p>
+                  )}
                   {item.selectedSize && (
                     <p className="mt-1 text-xs text-neutral-600">
                       Size: {item.selectedSize.label}

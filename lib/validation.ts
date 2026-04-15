@@ -27,6 +27,7 @@ export const cartItemSchema = z.object({
   notes: z.string().max(300).optional(),
   selectedAddons: z.array(addonOptionSchema).optional(),
   selectedSize: sizeOptionSchema.optional(),
+  selectedFlavor: addonOptionSchema.optional(),
 });
 
 export const pickupDetailsSchema = z.object({

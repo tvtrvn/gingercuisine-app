@@ -61,6 +61,11 @@ export function FloatingCart() {
                           <p className="font-medium text-neutral-900">
                             {item.quantity} × {item.name}
                           </p>
+                          {item.selectedFlavor && (
+                            <p className="text-[11px] text-neutral-600">
+                              Flavor: {item.selectedFlavor.name}
+                            </p>
+                          )}
                           {item.selectedSize && (
                             <p className="text-[11px] text-neutral-600">
                               Size: {item.selectedSize.label}
