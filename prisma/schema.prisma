@@ -55,4 +55,11 @@ model Order {
 
   @@index([orderStatus])
   @@index([createdAt])
+  // Composite: the dashboard's main query is "active OR recent" ordered by
+  // createdAt desc. This index lets Mongo serve the active half without a scan.
+  @@index([orderStatus, createdAt(sort: Desc)])
+  // Helps prefix search on name. Full-substring search still scans, but any
+  // startsWith-style query (and exact match) becomes O(log n).
+  @@index([pickupName])
+  @@index([pickupPhone])
 }

@@ -140,6 +140,72 @@ export async function listOrders(
   return records.map((r) => dbToOrder(r as unknown as OrderRecord));
 }
 
+/**
+ * Dashboard board fetch: returns every active order (regardless of age, so a
+ * rare 3-day-old "preparing" order never disappears) plus every completed /
+ * cancelled order placed in the last `windowHours` hours. Anything older is
+ * reachable via `searchOrders`.
+ */
+export async function listRecentAndActive(opts: {
+  windowHours: number;
+  limit?: number;
+}): Promise<Order[]> {
+  const { windowHours } = opts;
+  const limit = Math.min(opts.limit ?? 500, 500);
+  const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+  const records = await prisma.order.findMany({
+    where: {
+      OR: [
+        { orderStatus: { in: ACTIVE_ORDER_STATUSES } },
+        { createdAt: { gte: since } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  return records.map((r) => dbToOrder(r as unknown as OrderRecord));
+}
+
+/**
+ * Server-side, DB-backed search for older orders. Matches against order code,
+ * pickup name, and pickup phone. Intentionally capped at a small limit so the
+ * UI can render it cheaply.
+ *
+ * The regex used here is case-insensitive and anchored in the `contains`
+ * sense — MongoDB will scan rather than use a B-tree index, which is fine up
+ * to tens of thousands of orders. For hundreds of thousands, switch to Atlas
+ * Search (free tier available).
+ */
+export async function searchOrders(
+  rawQuery: string,
+  limit = 50,
+): Promise<Order[]> {
+  const query = rawQuery.trim();
+  if (query.length < 2) return [];
+  const cappedLimit = Math.min(limit, 100);
+
+  // Normalise phone input: stripped digits match stored formatted numbers
+  // poorly, so we fall back on a "digits anywhere" pattern too.
+  const digitsOnly = query.replace(/\D+/g, "");
+
+  const records = await prisma.order.findMany({
+    where: {
+      OR: [
+        { orderCode: { contains: query, mode: "insensitive" } },
+        { pickupName: { contains: query, mode: "insensitive" } },
+        { pickupPhone: { contains: query } },
+        ...(digitsOnly.length >= 3
+          ? [{ pickupPhone: { contains: digitsOnly } }]
+          : []),
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: cappedLimit,
+  });
+  return records.map((r) => dbToOrder(r as unknown as OrderRecord));
+}
+
 export interface UpdateOrderFields {
   orderStatus?: OrderStatus;
   posEntryStatus?: PosEntryStatus;

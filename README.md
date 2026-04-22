@@ -55,6 +55,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | `DASHBOARD_PASSWORD`                       | Shared staff password for `/dashboard`. Rotate regularly.        |
 | `DASHBOARD_SESSION_SECRET`                 | 32+ char random string for signing the dashboard session cookie. Generate with `openssl rand -hex 32`. |
 | `DASHBOARD_POLL_INTERVAL_MS` (optional)    | Poll interval ms for the dashboard (default 4000).               |
+| `DASHBOARD_HISTORY_WINDOW_HOURS` (optional)| How many hours of completed/cancelled history show on the board (default 48). Older orders are reachable via the search bar. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Rate-limiting backend. Optional for local dev, **required for production**. |
 
 ---
@@ -90,6 +91,47 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 
 ---
 
+## Scalability & the 48-hour window
+
+The live `/dashboard` is designed to stay fast and cheap indefinitely:
+
+- **Default view** = every active order (regardless of age) **plus** every completed/cancelled order from the last `DASHBOARD_HISTORY_WINDOW_HOURS` hours (default **48**, i.e. today + yesterday). A stale "preparing" order from 3 weeks ago still appears; a completed order from 3 weeks ago does not.
+- **Older orders** are reachable via the **search box** (name, phone, or order #). Search hits the database directly through `/api/dashboard/orders/search`, returns up to 50 matches, bypasses the time window, pauses polling, and swaps the kanban for a flat results view.
+- **Hard server cap** on every list fetch is 500 orders. Even on an unusually busy day with the window bumped to 7 days, the board won't try to render unbounded data.
+- **Rate limits** (in addition to the customer-side ones):
+  - Dashboard writes: 60 / min / session
+  - Dashboard search: 30 / min / session
+
+### What this means for free-tier hosting
+
+Assumptions: 1 tablet, 50 orders/day, 12-hour open time, 4-second poll.
+
+| Resource | Per-day cost | Free-tier limit | Headroom |
+|---|---|---|---|
+| Vercel serverless invocations (poll + patch + search) | ~11,000 | 1M edge requests/mo, 100 GB-hr compute/mo | plenty |
+| Vercel bandwidth (at ~20 active orders × ~1KB/order + deltas) | ~200–400 MB | 100 GB/mo | plenty |
+| MongoDB Atlas storage | ~2 MB (50 orders × ~40 KB) | 512 MB (M0 free) | years of orders |
+| Upstash commands (rate-limit writes + contact + login + search) | ~500 | 10,000/day | plenty |
+
+You stay inside free-tier limits easily for a single restaurant. For **multiple restaurants** on the same free tiers, the bottleneck is Vercel bandwidth: each additional always-open tablet adds another ~10 GB/month. At 5–8 tablets you should upgrade Vercel to Pro ($20/mo, 1 TB) or raise the poll interval (e.g. `DASHBOARD_POLL_INTERVAL_MS=8000`).
+
+### Scaling knobs
+
+- `DASHBOARD_POLL_INTERVAL_MS` — seconds between polls. Raising from 4s → 8s halves bandwidth and CPU.
+- `DASHBOARD_HISTORY_WINDOW_HOURS` — how much history the board shows. Smaller = smaller payloads = faster tablets.
+- `schema.prisma` indexes — composite `(orderStatus, createdAt desc)` index is in place, so the board's main query is O(log n) even with tens of thousands of historical orders.
+- **If you ever pass ~50k orders** and search starts to feel slow, flip search to [MongoDB Atlas Search](https://www.mongodb.com/docs/atlas/atlas-search/) (free tier includes 5 search indexes). Nothing about the app's API would change — only the implementation inside `searchOrders()`.
+- **If you have 10+ restaurants / 10+ tablets**, consider switching polling to Server-Sent Events on a long-running process, or Pusher/Ably. But polling remains correct behavior for a single restaurant indefinitely.
+
+### Things to be aware of
+
+- **Search is case-insensitive regex** on MongoDB; it scans rather than uses a B-tree index when you use middle-of-string terms. Fine up to ~50k orders. Partial phone matches also try a digits-only comparison so `"4161234567"` matches stored `"(416) 123-4567"`.
+- **Active orders never age out of the board**, even if they're older than the window. If you leave an order in "preparing" indefinitely, it stays visible — which is usually what you want.
+- **The client doesn't delete orders**. Staff can only move them to `cancelled` or `completed`. If you ever want to purge very old orders, do it from the Atlas console or add a scheduled job.
+- **Polling pauses during search.** When the search box has 2+ characters, the board stops auto-refreshing; clear the search to resume live updates.
+
+---
+
 ## Real-time choice
 
 The dashboard uses **polling** (default 4s) rather than WebSockets/SSE/Pusher/Ably. Rationale:
@@ -122,8 +164,9 @@ app/
     dashboard/
       login/route.ts         POST password → signed cookie (rate-limited)
       logout/route.ts
-      orders/route.ts        GET orders (scope, statuses)
+      orders/route.ts        GET recent-and-active orders (windowHours, limit, session-authed)
       orders/[orderId]/route.ts  GET + PATCH status/POS entry (rate-limited)
+      orders/search/route.ts GET older orders by name/phone/# (rate-limited)
 
 components/
   cart/ (context, floating cart)

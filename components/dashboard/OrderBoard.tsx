@@ -38,11 +38,13 @@ const COLUMN_DEFS: { status: OrderStatus; label: string; accent: string }[] = [
 interface OrderBoardProps {
   initialOrders: Order[];
   pollIntervalMs: number;
+  historyWindowHours: number;
 }
 
 export function OrderBoard({
   initialOrders,
   pollIntervalMs,
+  historyWindowHours,
 }: OrderBoardProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [scope, setScope] = useState<ScopeMode>("active");
@@ -58,13 +60,19 @@ export function OrderBoard({
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // --- Search (older orders, DB-backed) ---
+  const [searchResults, setSearchResults] = useState<Order[] | null>(null);
+  const [searchTruncated, setSearchTruncated] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const debouncedSearch = useDebouncedValue(search.trim(), 350);
+  const isSearchMode = debouncedSearch.length >= 2;
+
   // Track every order ID ever seen so we can detect genuinely new orders
   // without firing a toast on reload or for orders seen on a prior poll.
   const seenIdsRef = useRef<Set<string>>(
     new Set(initialOrders.map((o) => o.id)),
   );
-  // Track which new-order toasts we have already shown this session to avoid
-  // duplicate notifications if the same order reappears across filters.
   const notifiedIdsRef = useRef<Set<string>>(new Set());
 
   const playChime = useCallback(() => {
@@ -96,9 +104,10 @@ export function OrderBoard({
   const fetchOrders = useCallback(async () => {
     setIsFetching(true);
     try {
-      const res = await fetch(`/api/dashboard/orders?scope=all&limit=200`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/dashboard/orders?windowHours=${historyWindowHours}&limit=500`,
+        { cache: "no-store" },
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as {
         orders: Order[];
@@ -135,9 +144,12 @@ export function OrderBoard({
     } finally {
       setIsFetching(false);
     }
-  }, [playChime]);
+  }, [playChime, historyWindowHours]);
 
+  // Poll only when we're NOT in search mode. Search mode freezes the board
+  // so staff can focus on results without the list shifting underneath them.
   useEffect(() => {
+    if (isSearchMode) return;
     const id = setInterval(fetchOrders, pollIntervalMs);
     const onFocus = () => fetchOrders();
     window.addEventListener("focus", onFocus);
@@ -145,7 +157,41 @@ export function OrderBoard({
       clearInterval(id);
       window.removeEventListener("focus", onFocus);
     };
-  }, [fetchOrders, pollIntervalMs]);
+  }, [fetchOrders, pollIntervalMs, isSearchMode]);
+
+  // Debounced DB search when the user types 2+ chars.
+  useEffect(() => {
+    if (!isSearchMode) {
+      setSearchResults(null);
+      setSearchError(null);
+      setSearchTruncated(false);
+      return;
+    }
+    const controller = new AbortController();
+    setIsSearching(true);
+    setSearchError(null);
+    fetch(
+      `/api/dashboard/orders/search?q=${encodeURIComponent(debouncedSearch)}`,
+      { cache: "no-store", signal: controller.signal },
+    )
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as {
+          orders: Order[];
+          truncated?: boolean;
+        };
+        setSearchResults(data.orders);
+        setSearchTruncated(!!data.truncated);
+      })
+      .catch((err) => {
+        if ((err as { name?: string }).name === "AbortError") return;
+        console.error("[OrderBoard] search failed:", err);
+        setSearchError("Search failed. Please try again.");
+        setSearchResults([]);
+      })
+      .finally(() => setIsSearching(false));
+    return () => controller.abort();
+  }, [debouncedSearch, isSearchMode]);
 
   const patchOrder = useCallback(
     async (
@@ -156,9 +202,14 @@ export function OrderBoard({
       },
     ) => {
       setUpdatingId(orderId);
-      // Optimistic update.
+      // Optimistic update — apply to whichever list the order lives in.
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, ...body } : o)),
+      );
+      setSearchResults((prev) =>
+        prev
+          ? prev.map((o) => (o.id === orderId ? { ...o, ...body } : o))
+          : prev,
       );
       setSelectedOrder((prev) =>
         prev && prev.id === orderId ? { ...prev, ...body } : prev,
@@ -175,18 +226,22 @@ export function OrderBoard({
         setOrders((prev) =>
           prev.map((o) => (o.id === data.order.id ? data.order : o)),
         );
+        setSearchResults((prev) =>
+          prev
+            ? prev.map((o) => (o.id === data.order.id ? data.order : o))
+            : prev,
+        );
         setSelectedOrder((prev) =>
           prev && prev.id === data.order.id ? data.order : prev,
         );
       } catch (err) {
         console.error("[OrderBoard] patch failed:", err);
-        // Refetch to restore truth.
-        fetchOrders();
+        if (!isSearchMode) fetchOrders();
       } finally {
         setUpdatingId(null);
       }
     },
-    [fetchOrders],
+    [fetchOrders, isSearchMode],
   );
 
   const handleUpdateStatus = useCallback(
@@ -211,8 +266,7 @@ export function OrderBoard({
     [patchOrder],
   );
 
-  const filteredOrders = useMemo(() => {
-    const term = search.trim().toLowerCase();
+  const filteredBoardOrders = useMemo(() => {
     let list = orders;
 
     if (scope === "active") {
@@ -222,15 +276,6 @@ export function OrderBoard({
     }
     if (statusFilter !== "all") {
       list = list.filter((o) => o.orderStatus === statusFilter);
-    }
-    if (term) {
-      list = list.filter((o) => {
-        return (
-          o.id.toLowerCase().includes(term) ||
-          o.pickupDetails.name.toLowerCase().includes(term) ||
-          o.pickupDetails.phone.toLowerCase().includes(term)
-        );
-      });
     }
 
     const sorted = [...list];
@@ -245,7 +290,6 @@ export function OrderBoard({
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       );
     } else {
-      // pickup: ASAP first, then by pickupTime string; fallback to newest.
       sorted.sort((a, b) => {
         const aKey =
           a.pickupDetails.pickupTimeOption === "asap"
@@ -259,7 +303,7 @@ export function OrderBoard({
       });
     }
     return sorted;
-  }, [orders, scope, statusFilter, search, sortMode]);
+  }, [orders, scope, statusFilter, sortMode]);
 
   const counts = useMemo(() => {
     const c: Record<OrderStatus, number> = {
@@ -294,7 +338,8 @@ export function OrderBoard({
             <button
               type="button"
               onClick={() => setScope("active")}
-              className={`rounded-full px-3 py-1.5 ${
+              disabled={isSearchMode}
+              className={`rounded-full px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50 ${
                 scope === "active"
                   ? "bg-white text-neutral-900 shadow-sm"
                   : "text-neutral-600"
@@ -305,13 +350,14 @@ export function OrderBoard({
             <button
               type="button"
               onClick={() => setScope("all")}
-              className={`rounded-full px-3 py-1.5 ${
+              disabled={isSearchMode}
+              className={`rounded-full px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50 ${
                 scope === "all"
                   ? "bg-white text-neutral-900 shadow-sm"
                   : "text-neutral-600"
               }`}
             >
-              All orders
+              Last {historyWindowHours}h
             </button>
           </div>
 
@@ -319,10 +365,11 @@ export function OrderBoard({
             Status
             <select
               value={statusFilter}
+              disabled={isSearchMode}
               onChange={(e) =>
                 setStatusFilter(e.target.value as OrderStatus | "all")
               }
-              className="ml-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="ml-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="all">All</option>
               {COLUMN_DEFS.map((c) => (
@@ -337,8 +384,9 @@ export function OrderBoard({
             Sort
             <select
               value={sortMode}
+              disabled={isSearchMode}
               onChange={(e) => setSortMode(e.target.value as SortMode)}
-              className="ml-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="ml-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
@@ -348,85 +396,156 @@ export function OrderBoard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="search"
-            placeholder="Search name, phone or order #"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-56 rounded-full border border-neutral-300 px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-          />
-          <button
-            type="button"
-            onClick={fetchOrders}
-            disabled={isFetching}
-            className="inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                fetchError
-                  ? "bg-rose-500"
-                  : isFetching
-                    ? "bg-amber-500 animate-pulse"
-                    : "bg-emerald-500"
-              }`}
-              aria-hidden
+          <div className="relative">
+            <input
+              type="search"
+              placeholder="Search older orders (name, phone, #)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-64 rounded-full border border-neutral-300 px-3 py-1.5 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              aria-label="Search all orders"
             />
-            Refresh
-          </button>
+            {search.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {!isSearchMode && (
+            <button
+              type="button"
+              onClick={fetchOrders}
+              disabled={isFetching}
+              className="inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  fetchError
+                    ? "bg-rose-500"
+                    : isFetching
+                      ? "bg-amber-500 animate-pulse"
+                      : "bg-emerald-500"
+                }`}
+                aria-hidden
+              />
+              Refresh
+            </button>
+          )}
           <p className="text-[11px] text-neutral-500">
-            Last sync {new Date(lastFetchAt).toLocaleTimeString()}
+            {isSearchMode
+              ? isSearching
+                ? "Searching…"
+                : `${searchResults?.length ?? 0} result${
+                    (searchResults?.length ?? 0) === 1 ? "" : "s"
+                  }${searchTruncated ? "+" : ""}`
+              : `Last sync ${new Date(lastFetchAt).toLocaleTimeString()}`}
           </p>
         </div>
       </div>
 
-      {fetchError && (
+      {/* Contextual banner */}
+      {!isSearchMode && (
+        <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+          Showing all active orders plus completed/cancelled from the last{" "}
+          <strong>{historyWindowHours} hours</strong>. To find older orders,
+          type a name, phone number, or order # in the search box.
+        </p>
+      )}
+      {isSearchMode && searchTruncated && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Showing the first {searchResults?.length ?? 0} matches. Narrow your
+          search for more specific results.
+        </p>
+      )}
+      {fetchError && !isSearchMode && (
         <p className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
           {fetchError}
         </p>
       )}
+      {searchError && (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          {searchError}
+        </p>
+      )}
 
-      {/* Columns */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {visibleColumns.map((col) => {
-          const columnOrders = filteredOrders.filter(
-            (o) => o.orderStatus === col.status,
-          );
-          return (
-            <section
-              key={col.status}
-              className={`flex flex-col rounded-2xl border border-neutral-200 bg-gradient-to-b ${col.accent} p-3`}
-              aria-label={`${col.label} orders`}
-            >
-              <header className="mb-2 flex items-center justify-between gap-2 px-1">
-                <h2 className="text-sm font-bold tracking-wide text-neutral-900 uppercase">
-                  {col.label}
-                </h2>
-                <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">
-                  {columnOrders.length}
-                </span>
-              </header>
-              <div className="space-y-3">
-                {columnOrders.length === 0 && (
-                  <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-6 text-center text-xs text-neutral-500">
-                    No orders
-                  </p>
-                )}
-                {columnOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    isNewUnacknowledged={order.orderStatus === "new"}
-                    onOpenDetails={(o) => setSelectedOrder(o)}
-                    onUpdateStatus={handleUpdateStatus}
-                    onTogglePos={handleTogglePos}
-                    disabled={updatingId === order.id}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      {/* Search results view */}
+      {isSearchMode ? (
+        <section className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm">
+          {isSearching && (searchResults === null || searchResults.length === 0) && (
+            <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-8 text-center text-sm text-neutral-500">
+              Searching…
+            </p>
+          )}
+          {!isSearching && searchResults && searchResults.length === 0 && (
+            <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-8 text-center text-sm text-neutral-500">
+              No orders matched &ldquo;{debouncedSearch}&rdquo;.
+            </p>
+          )}
+          {searchResults && searchResults.length > 0 && (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {searchResults.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  isNewUnacknowledged={false}
+                  onOpenDetails={(o) => setSelectedOrder(o)}
+                  onUpdateStatus={handleUpdateStatus}
+                  onTogglePos={handleTogglePos}
+                  disabled={updatingId === order.id}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        /* Kanban board view */
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {visibleColumns.map((col) => {
+            const columnOrders = filteredBoardOrders.filter(
+              (o) => o.orderStatus === col.status,
+            );
+            return (
+              <section
+                key={col.status}
+                className={`flex flex-col rounded-2xl border border-neutral-200 bg-gradient-to-b ${col.accent} p-3`}
+                aria-label={`${col.label} orders`}
+              >
+                <header className="mb-2 flex items-center justify-between gap-2 px-1">
+                  <h2 className="text-sm font-bold tracking-wide text-neutral-900 uppercase">
+                    {col.label}
+                  </h2>
+                  <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">
+                    {columnOrders.length}
+                  </span>
+                </header>
+                <div className="space-y-3">
+                  {columnOrders.length === 0 && (
+                    <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-6 text-center text-xs text-neutral-500">
+                      No orders
+                    </p>
+                  )}
+                  {columnOrders.map((order) => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      isNewUnacknowledged={order.orderStatus === "new"}
+                      onOpenDetails={(o) => setSelectedOrder(o)}
+                      onUpdateStatus={handleUpdateStatus}
+                      onTogglePos={handleTogglePos}
+                      disabled={updatingId === order.id}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
 
       <OrderDetailsDrawer
         order={selectedOrder}
@@ -446,4 +565,14 @@ export function OrderBoard({
       />
     </div>
   );
+}
+
+// Small local hook — trims React state churn while the user is still typing.
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
 }

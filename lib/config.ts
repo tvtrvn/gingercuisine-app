@@ -18,6 +18,15 @@ export const DASHBOARD_POLL_INTERVAL_MS = Number(
   process.env.DASHBOARD_POLL_INTERVAL_MS ?? "4000",
 );
 
+// How far back the live dashboard board fetches completed/cancelled orders.
+// Active orders (new/acknowledged/preparing/ready) are ALWAYS shown regardless
+// of age; this window only clips the history of closed orders so the board
+// stays fast. Older orders remain reachable via the search bar.
+export const DASHBOARD_HISTORY_WINDOW_HOURS = Math.max(
+  1,
+  Number(process.env.DASHBOARD_HISTORY_WINDOW_HOURS ?? "48"),
+);
+
 // Messaging shown to customers (single source of truth).
 export const PRICES_NOTICE = "Prices subject to change without notice.";
 export const PAY_IN_PERSON_NOTICE =

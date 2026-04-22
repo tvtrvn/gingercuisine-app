@@ -1,45 +1,45 @@
-import { listOrders } from "@/lib/orderStore";
+import { DASHBOARD_HISTORY_WINDOW_HOURS } from "@/lib/config";
+import { listRecentAndActive } from "@/lib/orderStore";
 import { requireDashboardApi } from "@/lib/requireDashboardSession";
-import { OrderStatus } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const ALL_STATUSES: OrderStatus[] = [
-  "new",
-  "acknowledged",
-  "preparing",
-  "ready",
-  "completed",
-  "cancelled",
-];
+const MAX_LIMIT = 500;
+const MAX_WINDOW_HOURS = 24 * 14; // 2 weeks, hard ceiling
+
+function parseWindowHours(raw: string | null): number {
+  if (!raw) return DASHBOARD_HISTORY_WINDOW_HOURS;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return DASHBOARD_HISTORY_WINDOW_HOURS;
+  return Math.min(n, MAX_WINDOW_HOURS);
+}
+
+function parseLimit(raw: string | null): number {
+  if (!raw) return MAX_LIMIT;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return MAX_LIMIT;
+  return Math.min(n, MAX_LIMIT);
+}
 
 export async function GET(req: NextRequest) {
   const unauthorized = await requireDashboardApi();
   if (unauthorized) return unauthorized;
 
   const { searchParams } = new URL(req.url);
-  const scope = searchParams.get("scope") ?? "all"; // "active" | "all"
-  const limit = Number(searchParams.get("limit") ?? "200");
-
-  const statusesParam = searchParams.get("statuses");
-  const statuses = statusesParam
-    ? (statusesParam
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s): s is OrderStatus =>
-          (ALL_STATUSES as string[]).includes(s),
-        ))
-    : undefined;
+  const windowHours = parseWindowHours(searchParams.get("windowHours"));
+  const limit = parseLimit(searchParams.get("limit"));
 
   try {
-    const orders = await listOrders({
-      limit: Number.isFinite(limit) ? limit : 200,
-      activeOnly: scope === "active",
-      statuses,
-    });
+    const orders = await listRecentAndActive({ windowHours, limit });
     return NextResponse.json(
-      { orders, serverTime: new Date().toISOString() },
+      {
+        orders,
+        serverTime: new Date().toISOString(),
+        windowHours,
+        limit,
+        truncated: orders.length >= limit,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

@@ -127,6 +127,17 @@ export const dashboardWriteRateLimit = makeLimiter((redis) =>
   }),
 );
 
+// Per-staff-session cap on dashboard searches. Search hits the DB harder
+// than a normal board fetch (it may scan older history), so cap it lower.
+export const dashboardSearchRateLimit = makeLimiter((redis) =>
+  new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(30, "1 m"),
+    analytics: true,
+    prefix: "rl:dash-search",
+  }),
+);
+
 /**
  * Best-effort client IP for rate-limit keys. Falls back to "unknown" which
  * effectively rate-limits all un-identifiable requests as a single bucket

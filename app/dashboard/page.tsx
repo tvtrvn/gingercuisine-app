@@ -1,7 +1,11 @@
 import { OrderBoard } from "@/components/dashboard/OrderBoard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { DASHBOARD_POLL_INTERVAL_MS, RESTAURANT_NAME } from "@/lib/config";
-import { listOrders } from "@/lib/orderStore";
+import {
+  DASHBOARD_HISTORY_WINDOW_HOURS,
+  DASHBOARD_POLL_INTERVAL_MS,
+  RESTAURANT_NAME,
+} from "@/lib/config";
+import { listRecentAndActive } from "@/lib/orderStore";
 import { hasDashboardSession } from "@/lib/requireDashboardSession";
 import { redirect } from "next/navigation";
 
@@ -12,7 +16,10 @@ export default async function DashboardHome() {
     redirect("/dashboard/login");
   }
 
-  const orders = await listOrders({ limit: 200 });
+  const orders = await listRecentAndActive({
+    windowHours: DASHBOARD_HISTORY_WINDOW_HOURS,
+    limit: 500,
+  });
 
   return (
     <>
@@ -21,6 +28,7 @@ export default async function DashboardHome() {
         <OrderBoard
           initialOrders={orders}
           pollIntervalMs={DASHBOARD_POLL_INTERVAL_MS}
+          historyWindowHours={DASHBOARD_HISTORY_WINDOW_HOURS}
         />
       </div>
     </>
