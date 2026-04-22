@@ -1,8 +1,31 @@
 import { sendContactEmail } from "@/lib/email";
+import {
+  contactRateLimit,
+  getClientIp,
+  retryAfterSeconds,
+} from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requireSameOrigin";
 import { contactFormSchema } from "@/lib/validation";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const rl = await contactRateLimit.limit(`ip:${getClientIp(req)}`);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many messages. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(retryAfterSeconds(rl.reset)),
+        },
+      },
+    );
+  }
+
   try {
     const json = await req.json();
     const parsed = contactFormSchema.safeParse(json);
@@ -24,4 +47,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

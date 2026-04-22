@@ -14,6 +14,7 @@ export const MENU_IMAGES: Record<string, string> = {
   "pho-oxtail-beef-balls":          `${IMG}/oxtail-beefball-pho.webp`,
   "pho-special":                    `${IMG}/rare-beef-pho-far.jpg`,
   "pho-tofu-vegetable":             `${IMG}/tofu-veggie-pho.jpg`,
+  "pho-vegan":                      `${IMG}/tofu-veggie-pho.jpg`,
   // Tom Yum
   "tom-yum-seafood":                `${IMG}/seafood-tom-yum.jpg`,
   // Banh Mi
@@ -1005,7 +1006,7 @@ export const menuItems: MenuItem[] = ([
     id: "drink-jumex",
     categoryId: "drinks",
     name: "Jumex",
-    description: "Available in mango, strawberry, pineapple, avocado and banana.",
+    description: "Available in Mango, Strawnana, Guanabana, Pineapple Nectar, Strawbery, Guava.",
     price: 2.95,
     tags: ["vegetarian", "vegan"],
   },

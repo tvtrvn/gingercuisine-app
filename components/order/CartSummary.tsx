@@ -1,5 +1,5 @@
 import { useCart } from "@/components/cart/cart-context";
-import { CURRENCY, TAX_RATE } from "@/lib/config";
+import { CURRENCY, PRICES_NOTICE, TAX_RATE } from "@/lib/config";
 import { formatCurrency } from "@/lib/utils";
 
 export function CartSummary() {
@@ -119,6 +119,7 @@ export function CartSummary() {
           <span>Total</span>
           <span>{formatCurrency(total, CURRENCY)}</span>
         </div>
+        <p className="pt-1 text-[11px] text-neutral-500">{PRICES_NOTICE}</p>
       </div>
     </div>
   );

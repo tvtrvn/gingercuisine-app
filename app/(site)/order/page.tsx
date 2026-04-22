@@ -71,7 +71,11 @@ export default function OrderPage() {
         </h1>
         <p className="max-w-2xl text-sm text-neutral-700">
           Add dishes to your cart, review your order, and choose your pickup
-          time. You can pay at pickup or use Stripe Checkout for card payments.
+          time. Payment is collected in person at the restaurant when you pick
+          up your order.
+        </p>
+        <p className="max-w-2xl text-xs text-neutral-500">
+          Prices subject to change without notice.
         </p>
         <p className="text-xs text-neutral-600">
           Prefer to browse first?{" "}

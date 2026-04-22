@@ -1,7 +1,8 @@
 {
   "name": "gingercuisine-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "description": "Ginger Cuisine pickup ordering site and staff tablet dashboard. Customers place pay-in-person orders online; staff track and acknowledge them on /dashboard in real time, then punch them into the in-house POS. Next.js App Router + TypeScript + Tailwind + MongoDB (Prisma) + Resend + Upstash rate limiting.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,12 +11,13 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.37.0",
     "next": "16.1.6",
     "prisma": "^6.19.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "resend": "^4.0.0",
-    "stripe": "^16.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

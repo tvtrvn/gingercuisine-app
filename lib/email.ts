@@ -1,8 +1,9 @@
 import { Resend } from "resend";
 import {
-    CONTACT_EMAIL,
-    ORDER_NOTIFICATION_EMAIL,
-    RESTAURANT_NAME,
+  CONTACT_EMAIL,
+  ORDER_NOTIFICATION_EMAIL,
+  PRICES_NOTICE,
+  RESTAURANT_NAME,
 } from "./config";
 import { Order } from "./types";
 import { ContactFormInput } from "./validation";
@@ -31,38 +32,37 @@ export async function sendOrderEmail(order: Order) {
   }
 
   const itemsText = order.items
-    .map(
-      (item) => {
-        const unitPrice = item.unitPrice ?? item.price;
-        const flavorText = item.selectedFlavor ? ` [Flavor: ${item.selectedFlavor.name}]` : "";
-        const sizeText = item.selectedSize ? ` [Size: ${item.selectedSize.label}]` : "";
-        const addonsText =
-          item.selectedAddons && item.selectedAddons.length > 0
-            ? ` [Add-ons: ${item.selectedAddons
-                .map((addon) => `${addon.name} (+$${addon.price.toFixed(2)})`)
-                .join(", ")}]`
-            : "";
-        const notesText = item.notes ? ` [Notes: ${item.notes}]` : "";
-        return `- ${item.quantity} x ${item.name} ($${unitPrice.toFixed(2)})${flavorText}${sizeText}${addonsText}${notesText}`;
-      },
-    )
+    .map((item) => {
+      const unitPrice = item.unitPrice ?? item.price;
+      const flavorText = item.selectedFlavor
+        ? ` [Flavor: ${item.selectedFlavor.name}]`
+        : "";
+      const sizeText = item.selectedSize
+        ? ` [Size: ${item.selectedSize.label}]`
+        : "";
+      const addonsText =
+        item.selectedAddons && item.selectedAddons.length > 0
+          ? ` [Add-ons: ${item.selectedAddons
+              .map((addon) => `${addon.name} (+$${addon.price.toFixed(2)})`)
+              .join(", ")}]`
+          : "";
+      const notesText = item.notes ? ` [Notes: ${item.notes}]` : "";
+      return `- ${item.quantity} x ${item.name} ($${unitPrice.toFixed(2)})${flavorText}${sizeText}${addonsText}${notesText}`;
+    })
     .join("\n");
 
   const body = [
-    `New pickup order for ${RESTAURANT_NAME}`,
+    `New online pickup order for ${RESTAURANT_NAME}`,
     ``,
     `Order ID: ${order.id}`,
-    `Created At: ${order.createdAt}`,
+    `Placed: ${order.createdAt}`,
     ``,
     `Customer: ${order.pickupDetails.name}`,
     `Phone: ${order.pickupDetails.phone}`,
     order.pickupDetails.email
       ? `Email: ${order.pickupDetails.email}`
       : undefined,
-    `Pickup Time Option: ${order.pickupDetails.pickupTimeOption}`,
-    order.pickupDetails.pickupTime
-      ? `Requested Time: ${order.pickupDetails.pickupTime}`
-      : undefined,
+    `Pickup: ${order.pickupDetails.pickupTimeOption === "asap" ? "ASAP" : order.pickupDetails.pickupTime || "later today"}`,
     ``,
     `Items:`,
     itemsText,
@@ -71,7 +71,11 @@ export async function sendOrderEmail(order: Order) {
     `Tax: $${order.totals.tax.toFixed(2)}`,
     `Total: $${order.totals.total.toFixed(2)}`,
     ``,
-    `Payment Method: ${order.paymentMethod === "stripe" ? "Stripe" : "Pay at pickup"}`,
+    `Payment: Pay in person at pickup (unpaid)`,
+    ``,
+    `Note: ${PRICES_NOTICE}`,
+    ``,
+    `Please enter this order into the POS.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -79,7 +83,7 @@ export async function sendOrderEmail(order: Order) {
   await resend.emails.send({
     from: `${RESTAURANT_NAME} Orders <${resendFromEmail}>`,
     to: ORDER_NOTIFICATION_EMAIL,
-    subject: `New pickup order: ${order.id}`,
+    subject: `New online order: ${order.id}`,
     text: body,
   });
 }
@@ -110,4 +114,3 @@ export async function sendContactEmail(input: ContactFormInput) {
     text: body,
   });
 }
-

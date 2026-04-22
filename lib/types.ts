@@ -46,7 +46,7 @@ export interface MenuItem {
   availableAddons?: AddonOption[];
   availableSizes?: SizeOption[];
   defaultSizeId?: string;
-  availableFlavors?: AddonOption[];  // reuse AddonOption shape
+  availableFlavors?: AddonOption[];
 }
 
 export interface CartItem {
@@ -60,10 +60,12 @@ export interface CartItem {
   notes?: string;
   selectedAddons?: AddonOption[];
   selectedSize?: SizeOption;
-  selectedFlavor?: AddonOption;  // single selection
+  selectedFlavor?: AddonOption;
 }
 
-export type PaymentMethod = "pay_at_pickup" | "stripe";
+// Payment is in-person only now.
+export type PaymentMethod = "pay_in_person";
+export type PaymentStatus = "unpaid" | "paid";
 
 export interface PickupDetails {
   name: string;
@@ -73,12 +75,18 @@ export interface PickupDetails {
   pickupTime?: string;
 }
 
+// Kitchen/staff workflow statuses.
 export type OrderStatus =
   | "new"
-  | "confirmed"
-  | "in_progress"
+  | "acknowledged"
+  | "preparing"
+  | "ready"
   | "completed"
   | "cancelled";
+
+export type PosEntryStatus = "not_entered" | "entered";
+
+export type OrderSource = "website";
 
 export interface OrderTotals {
   subtotal: number;
@@ -87,12 +95,42 @@ export interface OrderTotals {
 }
 
 export interface Order {
-  id: string;
-  createdAt: string;
+  id: string;                       // orderCode (e.g. GC-ABC123)
+  createdAt: string;                // ISO string
+  updatedAt?: string;
   items: CartItem[];
   pickupDetails: PickupDetails;
+
   paymentMethod: PaymentMethod;
-  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+
+  orderStatus: OrderStatus;
+  posEntryStatus: PosEntryStatus;
+  source: OrderSource;
+
+  staffNote?: string;
+  viewToken?: string;
+
+  acknowledgedAt?: string;
+  readyAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+
   totals: OrderTotals;
 }
 
+export const ORDER_STATUS_ORDER: OrderStatus[] = [
+  "new",
+  "acknowledged",
+  "preparing",
+  "ready",
+  "completed",
+  "cancelled",
+];
+
+export const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
+  "new",
+  "acknowledged",
+  "preparing",
+  "ready",
+];

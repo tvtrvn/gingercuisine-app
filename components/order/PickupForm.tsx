@@ -1,7 +1,7 @@
 "use client";
 
 import { useCart } from "@/components/cart/cart-context";
-import { PaymentMethod } from "@/lib/types";
+import { PAY_IN_PERSON_NOTICE, PRICES_NOTICE } from "@/lib/config";
 import { orderRequestSchema } from "@/lib/validation";
 import { FormEvent, useState } from "react";
 
@@ -20,8 +20,6 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
   const [pickupTimeOption, setPickupTimeOption] =
     useState<"asap" | "later">("asap");
   const [pickupTime, setPickupTime] = useState("");
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("pay_at_pickup");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +27,19 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
     event.preventDefault();
     setError(null);
 
+    // Strip all client-side price/name fields. The server recomputes
+    // prices from `data/menu.ts`; we only send references + selections.
+    const selections = items.map((item) => ({
+      menuItemId: item.menuItemId,
+      quantity: item.quantity,
+      notes: item.notes,
+      selectedSizeId: item.selectedSize?.id,
+      selectedAddonIds: item.selectedAddons?.map((a) => a.id),
+      selectedFlavorId: item.selectedFlavor?.id,
+    }));
+
     const payload = {
-      items,
+      items: selections,
       pickupDetails: {
         name,
         phone,
@@ -38,7 +47,6 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
         pickupTimeOption,
         pickupTime: pickupTimeOption === "later" ? pickupTime : undefined,
       },
-      paymentMethod,
     };
 
     const parsed = orderRequestSchema.safeParse(payload);
@@ -55,39 +63,25 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
 
     setIsSubmitting(true);
     try {
-      if (paymentMethod === "pay_at_pickup") {
-        const res = await fetch("/api/order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsed.data),
-        });
-        if (!res.ok) {
-          throw new Error("Failed to place order.");
-        }
-        const data = await res.json();
-        clearCart();
-        if (onOrderCreated && data.orderId) {
-          onOrderCreated(data.orderId);
-        }
-        window.location.href = `/order/confirmation?orderId=${encodeURIComponent(
-          data.orderId,
-        )}`;
-      } else {
-        const res = await fetch("/api/order/stripe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsed.data),
-        });
-        if (!res.ok) {
-          throw new Error("Failed to create Stripe checkout.");
-        }
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error("Stripe checkout URL missing.");
-        }
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to place order.");
       }
+      const data = await res.json();
+      clearCart();
+      if (onOrderCreated && data.orderId) {
+        onOrderCreated(data.orderId);
+      }
+      const tokenParam = data.viewToken
+        ? `&token=${encodeURIComponent(data.viewToken)}`
+        : "";
+      window.location.href = `/order/confirmation?orderId=${encodeURIComponent(
+        data.orderId,
+      )}${tokenParam}`;
     } catch (err) {
       console.error(err);
       setError(
@@ -214,53 +208,19 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
         )}
       </fieldset>
 
-      <fieldset className="space-y-2">
-        <legend className="text-xs font-medium text-neutral-700">
-          Payment
-        </legend>
-        <p className="text-xs text-neutral-600">
-          You can pay at pickup or securely online with Stripe Checkout.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("pay_at_pickup")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              paymentMethod === "pay_at_pickup"
-                ? "bg-emerald-600 text-white"
-                : "bg-neutral-100 text-neutral-800"
-            }`}
-          >
-            Pay at pickup
-          </button>
-          <button
-            type="button"
-            onClick={() => setPaymentMethod("stripe")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              paymentMethod === "stripe"
-                ? "bg-emerald-600 text-white"
-                : "bg-neutral-100 text-neutral-800"
-            }`}
-          >
-            Pay with card (Stripe)
-          </button>
-        </div>
-      </fieldset>
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+        <p className="font-semibold">Pay in person at pickup</p>
+        <p className="mt-0.5 text-emerald-800">{PAY_IN_PERSON_NOTICE}</p>
+        <p className="mt-1 text-[11px] text-emerald-700">{PRICES_NOTICE}</p>
+      </div>
 
       <button
         type="submit"
         disabled={isSubmitting || items.length === 0}
         className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-600/30 transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
       >
-        {isSubmitting
-          ? paymentMethod === "stripe"
-            ? "Redirecting to Stripe…"
-            : "Placing order…"
-          : paymentMethod === "stripe"
-            ? "Checkout with card"
-            : "Place order"}
+        {isSubmitting ? "Placing order…" : "Place pickup order"}
       </button>
     </form>
   );
 }
-

@@ -1,7 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Prisma schema for Ginger Cuisine.
+// Source of truth: MongoDB (Atlas).
 
 generator client {
   provider = "prisma-client-js"
@@ -15,33 +13,46 @@ datasource db {
 model Order {
   id                String    @id @default(auto()) @map("_id") @db.ObjectId
   orderCode         String    @unique
-  stripeSessionId   String?
 
-  paymentMethod     String    // "pay_at_pickup" | "stripe"
-  paymentStatus     String    // "pending" | "paid" | "failed"
-  status            String    // "new" | "in_progress" | "completed" | "cancelled"
+  // Payment
+  paymentMethod     String    @default("pay_in_person") // "pay_in_person"
+  paymentStatus     String    @default("unpaid")        // "unpaid" | "paid"
 
+  // Kitchen workflow
+  orderStatus       String    @default("new")           // "new" | "acknowledged" | "preparing" | "ready" | "completed" | "cancelled"
+  posEntryStatus    String    @default("not_entered")   // "not_entered" | "entered"
+  source            String    @default("website")       // "website"
+
+  // Pickup
   pickupName        String
   pickupPhone       String
   pickupEmail       String?
   pickupTimeOption  String
   pickupTime        String?
 
-  itemsJson         String    // JSON.stringify(cart items)
+  // Cart
+  itemsJson         String
   subtotal          Float
   tax               Float
   total             Float
 
-  webhookProcessedAt DateTime?
+  // Optional staff note / internal comments
+  staffNote         String?
+
+  // Random token shared only with the customer who placed the order,
+  // required to view the confirmation page. Prevents enumeration of
+  // other customers' orders by guessing order codes.
+  viewToken         String?
+
+  // Timestamps for status transitions (helpful for dashboard)
+  acknowledgedAt    DateTime?
+  readyAt           DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-}
 
-model StripePendingOrder {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  stripeSessionId String   @unique
-  orderCode       String   @unique
-  payloadJson     String
-  createdAt       DateTime @default(now())
-  expiresAt       DateTime
+  @@index([orderStatus])
+  @@index([createdAt])
 }

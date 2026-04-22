@@ -1,13 +1,38 @@
-import { TAX_RATE } from "@/lib/config";
 import { sendOrderEmail } from "@/lib/email";
-import { addOrder } from "@/lib/orderStore";
-import { Order } from "@/lib/types";
+import { createOrder } from "@/lib/orderStore";
+import { PricingError, priceCart } from "@/lib/pricing";
+import {
+  getClientIp,
+  orderRateLimit,
+  retryAfterSeconds,
+} from "@/lib/rateLimit";
+import { isSameOrigin } from "@/lib/requireSameOrigin";
 import { orderRequestSchema } from "@/lib/validation";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const rl = await orderRateLimit.limit(`ip:${getClientIp(req)}`);
+  if (!rl.success) {
+    return NextResponse.json(
+      {
+        error:
+          "You're placing orders too quickly. Please wait a moment and try again.",
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(retryAfterSeconds(rl.reset)),
+        },
+      },
+    );
+  }
+
   try {
     const json = await req.json();
     const parsed = orderRequestSchema.safeParse(json);
@@ -18,45 +43,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { items, pickupDetails, paymentMethod } = parsed.data;
-    const subtotal = items.reduce(
-      (sum, item) => sum + (item.unitPrice ?? item.price) * item.quantity,
-      0,
-    );
-    const tax = subtotal * TAX_RATE;
-    const total = subtotal + tax;
+    const { items: selections, pickupDetails } = parsed.data;
 
-    const orderId = `GC-${Date.now().toString(36).toUpperCase()}`;
-    const order: Order = {
-      id: orderId,
-      createdAt: new Date().toISOString(),
-      items,
+    let priced;
+    try {
+      priced = priceCart(selections);
+    } catch (err) {
+      if (err instanceof PricingError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+
+    const orderCode = `GC-${Date.now().toString(36).toUpperCase()}`;
+
+    const order = await createOrder({
+      orderCode,
+      items: priced.items,
       pickupDetails,
-      paymentMethod,
-      status: "new",
-      totals: {
-        subtotal,
-        tax,
-        total,
-      },
-    };
+      subtotal: priced.subtotal,
+      tax: priced.tax,
+      total: priced.total,
+    });
 
-    await addOrder(order);
-    await sendOrderEmail(order);
+    sendOrderEmail(order).catch((err) =>
+      console.error("[/api/order] email failed:", err),
+    );
 
     return NextResponse.json(
       {
-        orderId,
+        orderId: order.id,
+        viewToken: order.viewToken,
         totals: order.totals,
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
       },
       { status: 201 },
     );
   } catch (error) {
-    console.error(error);
+    console.error("[/api/order] error:", error);
     return NextResponse.json(
       { error: "Something went wrong while creating the order." },
       { status: 500 },
     );
   }
 }
-
