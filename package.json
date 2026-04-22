@@ -5,7 +5,7 @@
   "description": "Ginger Cuisine pickup ordering site and staff tablet dashboard. Customers place pay-in-person orders online; staff track and acknowledge them on /dashboard in real time, then punch them into the in-house POS. Next.js App Router + TypeScript + Tailwind + MongoDB (Prisma) + Resend + Upstash rate limiting.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "postinstall": "prisma generate"
