@@ -190,6 +190,11 @@ export default function MenuPage() {
                 {cat.description && (
                   <p className="text-xs text-neutral-600">{cat.description}</p>
                 )}
+                {cat.availabilityNote && (
+                  <p className="mt-1 text-xs italic text-neutral-500">
+                    {cat.availabilityNote}
+                  </p>
+                )}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {items.map((item) => (

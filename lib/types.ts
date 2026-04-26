@@ -31,6 +31,8 @@ export interface MenuCategory {
   id: MenuCategoryId;
   name: string;
   description?: string;
+  /** Shown under the category blurb (e.g. availability disclaimer). */
+  availabilityNote?: string;
 }
 
 export interface MenuItem {

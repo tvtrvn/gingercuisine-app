@@ -1,4 +1,4 @@
-import { MenuCategory, MenuItem } from "@/lib/types";
+import { AddonOption, MenuCategory, MenuItem, SizeOption } from "@/lib/types";
 
 // add seafood options to all soups
 // add curry chicken and curry lamb to all dishes
@@ -8,11 +8,12 @@ import { MenuCategory, MenuItem } from "@/lib/types";
 // Keys = menu item id, values = path under /public.
 const IMG = "/images/Ginger-Food-Photos";
 export const MENU_IMAGES: Record<string, string> = {
-  // Pho
-  "pho-beef":                       `${IMG}/rare-beef-pho.jpg`,
+  // Pho (new PhoGinger-* photos where available)
+  "pho-beef":                       `${IMG}/PhoGinger_classic-beef.jpg`,
   "pho-rarebeef-AAA":               `${IMG}/rare-beef-pho-close.jpg`,
-  "pho-oxtail-beef-balls":          `${IMG}/oxtail-beefball-pho.webp`,
-  "pho-special":                    `${IMG}/rare-beef-pho-far.jpg`,
+  "pho-oxtail-beef-balls":          `${IMG}/PhoGinger-beefball-oxtail.jpg`,
+  "pho-chicken":                    `${IMG}/PhoGinger-pho-chicken.jpg`,
+  "pho-special":                    `${IMG}/PhoGinger-special-ginger.jpg`,
   "pho-tofu-vegetable":             `${IMG}/tofu-veggie-pho.jpg`,
   "pho-vegan":                      `${IMG}/tofu-veggie-pho.jpg`,
   // Tom Yum
@@ -26,8 +27,9 @@ export const MENU_IMAGES: Record<string, string> = {
   "rice-curry-chicken":             `${IMG}/curry-chicken-rice.webp`,
   "rice-curry-lamb":                `${IMG}/curry-lamb-rice.webp`,
   "rice-curry-chicken-beef":        `${IMG}/curry-chicken-beef.jpg`,
+  "rice-grilled-beef-ribs":         `${IMG}/PhoGinger-beef-ribs.jpg`,
   "rice-grilled-chicken-pork-chop": `${IMG}/chicken-porkchop-rice.jpg`,
-  "rice-grilled-porkchop-and-coconut-shrimp": `${IMG}/coco-shrimp-porkchop-rice.webp`,
+  "rice-grilled-porkchop-and-coconut-shrimp": `${IMG}/PhoGinger-porkchop-coconut-shrimp.jpg`,
   "rice-grilled-chicken-beef-shrimp-roll":    `${IMG}/chicken-beef-shrimp-roll-rice.jpg`,
   // Specialty Plates
   "specialty-chicken-shrimp-pad-thai":       `${IMG}/chicken-shrimp-padthai.jpg`,
@@ -35,11 +37,13 @@ export const MENU_IMAGES: Record<string, string> = {
   "specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle": `${IMG}/specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle.jpg`,
   "specialty-tofu-mixed-vegetable-with-crispy-noodle":                  `${IMG}/tofu-veggie-crispy-noodle.jpg`,
   "specialty-lemongrass-tofu-mixed-vegetable-with-pad-thai":            `${IMG}/lemongrass-tofu-mixed-vegetable-with-pad-thai.webp`,
+  "specialty-curry-tofu-mixed-vegetable-eggplant-with-brown-rice":       `${IMG}/PhoGinger-tofu-veg-eggplant.jpg`,
   "specialty-shrimp-fried-rice":     `${IMG}/shrimp-fried-rice.jpg`,
+  "specialty-butter-chicken":         `${IMG}/PhoGinger-butter-chicken-naan.jpg`,
   // Salmon & Fried Fish
   "pan-fried-salmon-mango-salad":    `${IMG}/pan-fried-salmon-mango-salad.jpg`,
   "teriyaki-salmon-mixed-vegetable-rice": `${IMG}/salmon-teriyaki.webp`,
-  "fried-fish-mango-salad":          `${IMG}/fried-fish-mango.jpg`,
+  "fried-fish-mango-salad":          `${IMG}/PhoGinger-crispy-fish-rice.jpg`,
   "fish-chips":                      `${IMG}/fish-chips.webp`,
   // Vermicelli
   "vermicelli-grilled-chicken":      `${IMG}/chicken-vermicelli.jpg`,
@@ -63,12 +67,17 @@ export const MENU_IMAGES: Record<string, string> = {
 };
 
 export const SOUP_ADDONS = [
-  { id: "addon-meat", name: "Meat", price: 7.00 },
-  { id: "addon-oxtail", name: "Oxtail", price: 8.00 },
-  { id: "addon-beef-balls", name: "Beef Balls", price: 6.00 },
-  { id: "addon-vegetable", name: "Vegetable", price: 5.00 },
-  { id: "addon-tofu", name: "Tofu", price: 5.00 },
-  { id: "addon-grain", name: "Grain", price: 4.00 },
+  { id: "addon-meat", name: "Meat", price: 7.0 },
+  { id: "addon-oxtail", name: "Oxtail", price: 8.0 },
+  { id: "addon-beef-balls", name: "Beef Balls", price: 6.0 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+  { id: "addon-tofu", name: "Tofu", price: 5.0 },
+  { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
+];
+
+/** Shown on starter soups (small soups) as an optional add-on. */
+export const STARTER_SOUP_ADDONS: AddonOption[] = [
+  { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
 ];
 
 export const SOUP_ADDONS_SEAFOOD = [
@@ -78,32 +87,219 @@ export const SOUP_ADDONS_SEAFOOD = [
   { id: "crab-meat", name: "Crab Meat", price: 8.00 }, // shrimp, squid, mussels, and crab meat
 ];
 
-export const DISH_ADDONS = [
-  { id: "addon-meat", name: "Meat", price: 7.00 },
-  { id: "addon-egg", name: "Egg", price: 2.00 },
-  { id: "addon-vegetable", name: "Vegetable", price: 5.00 },
-  { id: "addon-tofu", name: "Tofu", price: 5.00 },
-  { id: "addon-grain", name: "Grain", price: 4.00 },
-  { id: "fried-rice", name: "Fried Rice", price: 5.00 },
-  { id: "addon-shrimp", name: "Shrimp", price: 8.00 },
+/**
+ * Extra meat & protein: used on the Sides menu and as add-ons for rice
+ * plates, specialty plates, and vermicelli. Pick a specific item — no general
+ * “meat” bucket. Shrimp is included; mussels/squid/crab (soup seafood) are
+ * not offered here. Tofu is split into white vs fried.
+ */
+export const MEAT_PROTEIN_ADDONS = [
+  { id: "extra-grilled-chicken", name: "Grilled chicken", price: 7.0 },
+  { id: "extra-grilled-beef", name: "Grilled beef", price: 7.0 },
+  { id: "extra-grilled-porkchop", name: "Grilled pork chop", price: 7.0 },
+  { id: "extra-grilled-pork", name: "Grilled pork", price: 7.0 },
+  { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
+  { id: "extra-curry-chicken", name: "Curry chicken", price: 6.0 },
+  { id: "extra-curry-lamb", name: "Curry lamb", price: 8.0 },
+  { id: "extra-shrimp", name: "Shrimp", price: 8.0 },
+  { id: "extra-beef-balls", name: "Beef balls", price: 6.0 },
+  { id: "extra-oxtail", name: "Oxtail", price: 8.0 },
+  { id: "extra-tofu-white", name: "Tofu (white)", price: 5.0 },
+  { id: "extra-tofu-fried", name: "Tofu (fried)", price: 5.0 },
 ];
 
-export const DISH_ADDONS_SPECIAL = [
-  { id: "curry-chicken", name: "Curry Chicken", price: 6.00 },
-  { id: "curry-lamb", name: "Curry Lamb", price: 8.95 },
-]
+/**
+ * How to append non-meat extras: `rice` uses "Switch to Fried Rice" at $1;
+ * `specialty` includes "Fried rice" $5; `vermicelli` omits any rice swap.
+ */
+export type DishNonMeatSet =
+  | "rice"
+  | "specialty"
+  | "vermicelli"
+  /** Extra shrimp only: egg + vegetable (no grain, no fried-rice add-on). */
+  | "egg-veg-only";
+
+/** Non-meat extras for most specialty plates — “Fried rice” $5, no grain. */
+export const NON_MEAT_DISH_ADDONS: AddonOption[] = [
+  { id: "addon-egg", name: "Egg", price: 2.0 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+  { id: "fried-rice", name: "Fried rice", price: 5.0 },
+];
+
+const NON_MEAT_RICE_ADDONS: AddonOption[] = [
+  { id: "addon-egg", name: "Egg", price: 2.0 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+  {
+    id: "switch-fried-rice",
+    name: "Switch to Fried Rice",
+    price: 1.0,
+  },
+];
+
+const NON_MEAT_VERMICELLI_ADDONS: AddonOption[] = [
+  { id: "addon-egg", name: "Egg", price: 2.0 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+  {
+    id: "addon-vermicelli-noodle",
+    name: "Vermicelli noodle",
+    price: 4.0,
+  },
+];
+
+const NON_MEAT_EGG_VEG_ONLY: AddonOption[] = [
+  { id: "addon-egg", name: "Egg", price: 2.0 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+];
+
+export const BUTTER_CHICKEN_BASE_OPTIONS: SizeOption[] = [
+  { id: "rice", label: "Rice", priceDelta: 0 },
+  { id: "naan", label: "Naan", priceDelta: 0 },
+];
+
+export const BUTTER_CHICKEN_ADDONS: AddonOption[] = [
+  { id: "extra-rice", name: "Extra rice", price: 4.0 },
+  { id: "extra-naan", name: "Extra naan", price: 4.0 },
+];
+
+function nonMeatAddonsFor(set: DishNonMeatSet): AddonOption[] {
+  if (set === "rice") return NON_MEAT_RICE_ADDONS;
+  if (set === "vermicelli") return NON_MEAT_VERMICELLI_ADDONS;
+  if (set === "egg-veg-only") return NON_MEAT_EGG_VEG_ONLY;
+  return NON_MEAT_DISH_ADDONS;
+}
+
+/**
+ * Build the add-on list for a dish. Pass the add-on IDs of the proteins
+ * actually in the dish. Non-meat set: `rice` (Switch to Fried Rice $1), `specialty`
+ * (Fried rice $5), `vermicelli` (Vermicelli noodle $4, no rice swap), `egg-veg-only`
+ * (egg + vegetable only — e.g. shrimp fried rice).
+ */
+export function dishAddonsFor(
+  meatAddonIds: string[],
+  set: DishNonMeatSet = "specialty",
+): AddonOption[] {
+  const meats = MEAT_PROTEIN_ADDONS.filter((a) =>
+    meatAddonIds.includes(a.id),
+  );
+  if (meats.length !== meatAddonIds.length) {
+    const missing = meatAddonIds.filter(
+      (id) => !MEAT_PROTEIN_ADDONS.some((a) => a.id === id),
+    );
+    throw new Error(
+      `dishAddonsFor: unknown meat add-on id(s): ${missing.join(", ")}`,
+    );
+  }
+  return [...meats, ...nonMeatAddonsFor(set)];
+}
 
 export const SMOOTHIE_FLAVORS = [
-  { id: "strawberry", name: "Strawberry", price: 0.00 },
-  { id: "banana", name: "Banana", price: 0.00 },
-  { id: "mango", name: "Mango", price: 0.00 },
-  { id: "pineapple", name: "Pineapple", price: 0.00 },
-  { id: "avocado", name: "Avocado", price: 0.00 },
+  { id: "strawberry", name: "Strawberry", price: 0.0 },
+  { id: "banana", name: "Banana", price: 0.0 },
+  { id: "mango", name: "Mango", price: 0.0 },
+  { id: "pineapple", name: "Pineapple", price: 0.0 },
+  { id: "avocado", name: "Avocado", price: 0.0 },
+];
+
+export const HOT_TEA_FLAVORS = [
+  { id: "black-tea", name: "Black tea", price: 0.0 },
+  { id: "jasmine-green-tea", name: "Jasmine green tea", price: 0.0 },
+];
+
+/** Canned soft drink choices (same list price; staff swap brand at the counter). */
+export const SOFT_DRINK_FLAVORS = [
+  { id: "coke", name: "Coke", price: 0.0 },
+  { id: "diet-coke", name: "Diet Coke", price: 0.0 },
+  { id: "pepsi", name: "Pepsi", price: 0.0 },
+  { id: "diet-pepsi", name: "Diet Pepsi", price: 0.0 },
+  { id: "fuze", name: "Fuze", price: 0.0 },
+  { id: "root-beer", name: "Root beer", price: 0.0 },
+  { id: "ginger-ale", name: "Ginger ale", price: 0.0 },
+  { id: "crush-grape", name: "Crush (grape)", price: 0.0 },
+  { id: "crush-orange", name: "Crush (orange)", price: 0.0 },
+  { id: "crush-cream-soda", name: "Crush (cream soda)", price: 0.0 },
+];
+
+export const BUBBLE_TEA_FLAVORS = [
+  { id: "bbt-mango", name: "Mango", price: 0.0 },
+  { id: "bbt-strawberry", name: "Strawberry", price: 0.0 },
+  { id: "bbt-original", name: "Original", price: 0.0 },
+  { id: "bbt-lychee", name: "Lychee", price: 0.0 },
+  { id: "bbt-peach", name: "Peach", price: 0.0 },
+  { id: "bbt-honeydew", name: "Honeydew", price: 0.0 },
+  { id: "bbt-passion-fruit", name: "Passion fruit", price: 0.0 },
+  { id: "bbt-taro", name: "Taro", price: 0.0 },
+];
+
+/** Side add-on: soup size + broth (replaces separate small/large line items). */
+export const SIDE_SOUP_SIZE_OPTIONS = [
+  { id: "small", label: "Small", priceDelta: 0 },
+  { id: "large", label: "Large", priceDelta: 1 },
+];
+
+export const SIDE_SOUP_BROTH_FLAVORS = [
+  { id: "pho-broth", name: "Pho broth", price: 0.0 },
+  { id: "tom-yum-broth", name: "Tom yum broth", price: 0.0 },
+  { id: "chicken-broth", name: "Chicken broth", price: 0.0 },
+  { id: "vegetable-broth", name: "Vegetable broth", price: 0.0 },
+];
+
+export const COCONUT_WATER_SIZE_OPTIONS: SizeOption[] = [
+  { id: "small", label: "Small", priceDelta: 0 },
+  { id: "large", label: "Large", priceDelta: 1.0 },
+];
+
+export const JUICE_BOTTLE_FLAVORS = [
+  { id: "orange-juice", name: "Orange juice", price: 0.0 },
+  { id: "apple-juice", name: "Apple juice", price: 0.0 },
+];
+
+export const JUMEX_FLAVORS = [
+  { id: "mango", name: "Mango", price: 0.0 },
+  { id: "strawnana", name: "Strawnana", price: 0.0 },
+  { id: "guanabana", name: "Guanabana", price: 0.0 },
+  { id: "pineapple-nectar", name: "Pineapple nectar", price: 0.0 },
+  { id: "strawberry", name: "Strawberry", price: 0.0 },
+  { id: "guava", name: "Guava", price: 0.0 },
+];
+
+/**
+ * The Cheesecake Factory slice options. Base price is for standard slices;
+ * some varieties add a small upcharge.
+ */
+export const DESSERT_CAKE_FLAVORS = [
+  {
+    id: "wild-strawberries-cream",
+    name: "Wild strawberries & cream cheesecake",
+    price: 0.0,
+  },
+  {
+    id: "godiva-double-chocolate",
+    name: "Godiva double chocolate cheesecake",
+    price: 0.51,
+  },
+  {
+    id: "white-chocolate-raspberry",
+    name: "White chocolate raspberry cheesecake",
+    price: 0.0,
+  },
+  {
+    id: "mango-key-lime",
+    name: "Mango key lime cheesecake",
+    price: 0.51,
+  },
+  { id: "red-velvet", name: "Red velvet cheesecake", price: 0.0 },
 ];
 
 export const SOUP_SIZE_OPTIONS = [
   { id: "small", label: "Small", priceDelta: 0 },
   { id: "large", label: "Large", priceDelta: 2 },
+];
+
+/** Classic Beef Pho: how the customer wants the beef in the bowl (same list price). */
+export const CLASSIC_BEEF_PHO_CUTS: AddonOption[] = [
+  { id: "pho-beef-rare", name: "Rare beef", price: 0.0 },
+  { id: "pho-beef-well-done", name: "Well-done beef", price: 0.0 },
+  { id: "pho-beef-both", name: "Both (rare & well-done)", price: 0.0 },
 ];
 
 export const LARGE_ONLY_SIZE_OPTION = [
@@ -141,6 +337,11 @@ export const menuCategories: MenuCategory[] = [
     description: "Fragrant jasmine rice with grilled specialties topped with bokchoy.",
   },
   {
+    id: "specialty-plates",
+    name: "Specialty Plates",
+    description: "House specialties — pad thai, udon, and crispy noodles.",
+  },
+  {
     id: "salmon-fried-fish",
     name: "Salmon & Fried Fish",
     description: "Salmon & fried fish plates.",
@@ -169,26 +370,29 @@ export const menuCategories: MenuCategory[] = [
     id: "drinks",
     name: "Drinks",
     description: "Vietnamese coffee, teas, smoothies, bubble tea, and soft drinks.",
+    availabilityNote: "Options can change based on availability.",
   },
   {
     id: "desserts",
     name: "Desserts",
     description: "Slices of cake, specially ordered from The Cheesecake Factory",
+    availabilityNote: "Options can change based on availability.",
   },
 ];
 
 export const menuItems: MenuItem[] = ([
   // Pho
   {
-    id: "pho-beef", // add rare or brisket option or both
+    id: "pho-beef",
     categoryId: "pho",
     name: "Classic Beef Pho",
     vietnameseName: "Phở Bò",
     description:
-      "Rice noodles in aromatic beef broth with rare beef or brisket or both, topped with onions, saw leaf, basil, beansprout and lime.",
+      "Rice noodles in aromatic beef broth — choose rare beef, well-done beef, or both — topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
     tags: [],
     isFeatured: true,
+    availableFlavors: CLASSIC_BEEF_PHO_CUTS,
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
@@ -265,7 +469,7 @@ export const menuItems: MenuItem[] = ([
     description:
       "Rice noodles in aromatic vegetable broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
-    tags: ["vegan"],
+    tags: ["vegetarian", "vegan"],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
@@ -318,7 +522,7 @@ export const menuItems: MenuItem[] = ([
     description:
       "Rice noodles in aromatic vegetable hot and sour broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
-    tags: ["vegan"],
+    tags: ["vegetarian", "vegan"],
     availableAddons: SOUP_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
@@ -387,7 +591,7 @@ export const menuItems: MenuItem[] = ([
       "Marinated pork chop over jasmine rice, bokchoy, and fish sauce.",
     price: 17.5,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-porkchop"], "rice"),
   },
   {
     id: "rice-grilled-chicken",
@@ -398,7 +602,7 @@ export const menuItems: MenuItem[] = ([
       "Grilled chicken with jasmine rice and bokchoy.",
     price: 16.25,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-chicken"], "rice"),
   },
   {
     id: "rice-spicy-grilled-chicken",
@@ -409,7 +613,7 @@ export const menuItems: MenuItem[] = ([
       "Spicy grilled chicken with jasmine rice and bokchoy.",
     price: 16.25,
     tags: ["spicy"],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-chicken"], "rice"),
   },
   {
     id: "rice-lemon-grass-beef",
@@ -420,7 +624,7 @@ export const menuItems: MenuItem[] = ([
       "Grilled lemongrass beef with jasmine rice and bokchoy.",
     price: 16.25,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-beef"], "rice"),
   },
   {
     id: "rice-curry-chicken",
@@ -431,7 +635,7 @@ export const menuItems: MenuItem[] = ([
       "Curry chicken with jasmine rice and bokchoy.",
     price: 16.25,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-curry-chicken"], "rice"),
   },
   {
     id: "rice-grilled-beef-ribs",
@@ -442,7 +646,7 @@ export const menuItems: MenuItem[] = ([
       "Grilled beef ribs with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-beef"], "rice"),
   },
   {
     id: "rice-grilled-porkchop-and-coconut-shrimp",
@@ -453,7 +657,7 @@ export const menuItems: MenuItem[] = ([
       "Grilled shrimp with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-shrimp"], "rice"),
   },
   {
     id: "rice-grilled-chicken-pork-chop",
@@ -464,7 +668,13 @@ export const menuItems: MenuItem[] = ([
       "Grilled chicken & pork chop with jasmine rice, bokchoy, and fish sauce.",
     price: 17.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(
+      [
+        "extra-grilled-chicken",
+        "extra-grilled-porkchop",
+      ],
+      "rice",
+    ),
   },
   {
     id: "rice-curry-lamb",
@@ -475,7 +685,7 @@ export const menuItems: MenuItem[] = ([
       "Curry lamb with jasmine rice and bokchoy.",
     price: 19.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-curry-lamb"], "rice"),
   },
   {
     id: "rice-curry-chicken-beef",
@@ -486,7 +696,13 @@ export const menuItems: MenuItem[] = ([
       "Curry chicken & beef with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(
+      [
+        "extra-curry-chicken",
+        "extra-grilled-beef",
+      ],
+      "rice",
+    ),
   },
   {
     id: "rice-grilled-chicken-beef-shrimp-roll",
@@ -498,7 +714,14 @@ export const menuItems: MenuItem[] = ([
     price: 18.95,
     tags: [],
     isFeatured: true,
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(
+      [
+        "extra-grilled-chicken",
+        "extra-grilled-beef",
+        "extra-shrimp",
+      ],
+      "rice",
+    ),
   },
   // Specialty Plates
   {
@@ -511,7 +734,13 @@ export const menuItems: MenuItem[] = ([
     price: 18.95,
     tags: [],
     isFeatured: true,
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(
+      [
+        "extra-grilled-chicken",
+        "extra-shrimp",
+      ],
+      "rice",
+    ),
   },
   {
     id: "specialty-chicken-beef-teriyaki-udon",
@@ -522,7 +751,13 @@ export const menuItems: MenuItem[] = ([
       "Grilled chicken & beef teriyaki udon with cabbage.",
     price: 18.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(
+      [
+        "extra-grilled-chicken",
+        "extra-grilled-beef",
+      ],
+      "rice",
+    ),
   },
   {
     id: "specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle",
@@ -533,7 +768,6 @@ export const menuItems: MenuItem[] = ([
       "Assorted grilled meat, seafood, mixed vegetable with crispy noodle.",
     price: 18.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
   },
   {
     id: "specialty-tofu-mixed-vegetable-with-crispy-noodle",
@@ -544,7 +778,6 @@ export const menuItems: MenuItem[] = ([
       "Tofu & mixed vegetable with crispy noodle.",
     price: 16.5,
     tags: ["vegetarian", "vegan"],
-    availableAddons: DISH_ADDONS,
   },
   {
     id: "specialty-lemongrass-tofu-mixed-vegetable-with-pad-thai",
@@ -555,7 +788,7 @@ export const menuItems: MenuItem[] = ([
       "Lemon grass tofu & mixed vegetable with pad thai.",
     price: 19.5,
     tags: ["vegetarian", "vegan"],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-tofu-fried"], "rice"),
   },
   {
     id: "specialty-curry-tofu-mixed-vegetable-eggplant-with-brown-rice",
@@ -566,7 +799,7 @@ export const menuItems: MenuItem[] = ([
       "Curry tofu & mixed vegetable & eggplant with brown rice.",
     price: 16.5,
     tags: ["vegetarian", "vegan"],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-tofu-fried"], "rice"),
   },
   {
     id: "specialty-shrimp-fried-rice",
@@ -577,7 +810,20 @@ export const menuItems: MenuItem[] = ([
       "Grilled shrimp fried rice with vegetables medley and eggs.",
     price: 18.95,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-shrimp"], "egg-veg-only"),
+  },
+  {
+    id: "specialty-butter-chicken",
+    categoryId: "specialty-plates",
+    name: "Butter Chicken Specialty Plate",
+    vietnameseName: "Butter Chicken",
+    description:
+      "Butter chicken with your choice of jasmine rice or naan.",
+    price: 18.95,
+    tags: [],
+    availableSizes: BUTTER_CHICKEN_BASE_OPTIONS,
+    defaultSizeId: "rice",
+    availableAddons: BUTTER_CHICKEN_ADDONS,
   },
   // Salmon & Fried Fish
   {
@@ -632,7 +878,7 @@ export const menuItems: MenuItem[] = ([
     price: 17.75,
     tags: [],
     isFeatured: true,
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-chicken"], "vermicelli"),
   },
   {
     id: "vermicelli-grilled-beef",
@@ -643,7 +889,7 @@ export const menuItems: MenuItem[] = ([
     "Cool rice vermicelli with grilled beef, crispy chicken spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and fish sauce.",
     price: 17.75,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-beef"], "vermicelli"),
   },
   {
     id: "vermicelli-grilled-pork",
@@ -654,7 +900,7 @@ export const menuItems: MenuItem[] = ([
     "Cool rice vermicelli with grilled pork, crispy chicken spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and fish sauce.",
     price: 17.75,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-grilled-pork"], "vermicelli"),
   },
   {
     id: "vermicelli-grilled-shrimp",
@@ -665,7 +911,7 @@ export const menuItems: MenuItem[] = ([
     "Cool rice vermicelli with grilled shrimp, crispy chicken spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and fish sauce.",
     price: 17.75,
     tags: [],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-shrimp"], "vermicelli"),
   },
   {
     id: "vermicelli-tofu",
@@ -676,7 +922,7 @@ export const menuItems: MenuItem[] = ([
     "Cool rice vermicelli with lemongrass tofu, crispy vegetable spring roll, served with onion, peanuts, pickled carrot, beansprout, lettuce, cucumber, mint and soy sauce.",
     price: 17.75,
     tags: ["vegetarian", "vegan"],
-    availableAddons: DISH_ADDONS,
+    availableAddons: dishAddonsFor(["extra-tofu-fried"], "vermicelli"),
   },
 
   // Appetizers
@@ -821,6 +1067,7 @@ export const menuItems: MenuItem[] = ([
       "Spicy and sour soup with shrimp, mushrooms, and herbs.",
     price: 8.95,
     tags: [],
+    availableAddons: STARTER_SOUP_ADDONS,
   },
   {
     id: "starter-chicken-coconut-mushroom-soup", // add a tofu option
@@ -831,6 +1078,7 @@ export const menuItems: MenuItem[] = ([
       "Spicy and sour soup with chicken, mushrooms, and herbs.",
     price: 8.95,
     tags: [],
+    availableAddons: STARTER_SOUP_ADDONS,
   },
   {
     id: "starter-wonton-soup",
@@ -841,6 +1089,7 @@ export const menuItems: MenuItem[] = ([
       "Wonton soup with wontons and lettuce.",
     price: 8.95,
     tags: [],
+    availableAddons: STARTER_SOUP_ADDONS,
   },
 
   // Mango Salad Appetizers
@@ -913,20 +1162,16 @@ export const menuItems: MenuItem[] = ([
     price: 5.0,
   },
   {
-    id: "side-soup-large",
+    id: "side-soup",
     categoryId: "sides",
     name: "Soup",
     vietnameseName: "Súp",
-    description: "Add Pho or Tom Yum or Vegetable soup",
-    price: 5.0,
-  },
-  {
-    id: "side-soup-small",
-    categoryId: "sides",
-    name: "Soup",
-    vietnameseName: "Súp",
-    description: "Add Pho or Tom Yum or Vegetable soup",
+    description:
+      "Add a side of soup. Small $4, large $5. Choose broth: pho, tom yum, chicken, or vegetable.",
     price: 4.0,
+    availableSizes: SIDE_SOUP_SIZE_OPTIONS,
+    defaultSizeId: "small",
+    availableFlavors: SIDE_SOUP_BROTH_FLAVORS,
   },
   {
     id: "side-udon-noodle",
@@ -944,11 +1189,39 @@ export const menuItems: MenuItem[] = ([
     description: "Add vermicelli",
     price: 4.0,
   },
+  {
+    id: "side-rice-noodle",
+    categoryId: "sides",
+    name: "Rice noodle",
+    vietnameseName: "Bún Phở",
+    description: "Add rice noodle",
+    price: 4.0,
+    tags: ["vegetarian", "vegan"],
+  },
+  {
+    id: "side-naan",
+    categoryId: "sides",
+    name: "Naan",
+    description: "Add naan",
+    price: 4.0,
+  },
+  {
+    id: "side-extra-meat-protein",
+    categoryId: "sides",
+    name: "Extra meat & protein",
+    vietnameseName: "Thêm món thịt",
+    description:
+      "Add extra to your order. Select one or more: grilled chicken, beef, or pork chop $7; curry chicken $6; curry lamb, shrimp, or oxtail $8; beef balls $6; tofu (white or fried) $5. Rice noodles are available separately as the Rice noodle side in this category.",
+    price: 0,
+    availableAddons: MEAT_PROTEIN_ADDONS.filter(
+      (a) => a.id !== "extra-rice-noodle",
+    ),
+  },
 
 
   // Drinks
   {
-    id: "drink-iced-coffee", // add hot coffee option
+    id: "drink-iced-coffee",
     categoryId: "drinks",
     name: "Vietnamese Iced Coffee",
     vietnameseName: "Cà Phê Sữa Đá",
@@ -968,75 +1241,76 @@ export const menuItems: MenuItem[] = ([
     availableFlavors: SMOOTHIE_FLAVORS,
   },
   {
-    id: "drink-hot-tea", // add option
+    id: "drink-hot-tea",
     categoryId: "drinks",
     name: "Hot Tea",
-    description: "Refreshing house-brewed tea. Available in black tea, jasmine green tea",
+    description:
+      "House-brewed hot tea. Choose black tea or jasmine green tea.",
     price: 1.95,
     tags: ["vegetarian", "vegan"],
+    availableFlavors: HOT_TEA_FLAVORS,
   },
   {
     id: "drink-bubble-tea",
     categoryId: "drinks",
     name: "Bubble Tea",
-    description: "Bubble tea with tapioca pearls.", // Mango, Strawberry,OG,Lychee,Peach,Honeydew,PassionFruit,Taro
-    price: 6.50,
+    description:
+      "Bubble tea with tapioca pearls. Choose flavor — mango, strawberry, original, lychee, peach, honeydew, passion fruit, or taro.",
+    price: 6.5,
     tags: ["vegetarian", "vegan"],
+    availableFlavors: BUBBLE_TEA_FLAVORS,
   },
   {
-    /*
-    Coke, Diet Coke, Pepsi, Diet Pepsi, Fuze, RootBeer, Gingerale, Crush(Grape, CreamSoda,),
-    */
     id: "drink-soft-drink",
     categoryId: "drinks",
     name: "Soft Drink",
-    description: "Assorted canned soft drinks and juices.",
+    description:
+      "Canned soft drink. Choose brand — Coke, Diet Coke, Pepsi, Diet Pepsi, Fuze, root beer, ginger ale, or Crush (orange, grape, or cream soda).",
     price: 1.75,
     tags: ["vegetarian", "vegan"],
+    availableFlavors: SOFT_DRINK_FLAVORS,
   },
-  { // orange apple
+  {
     id: "drink-juice-bottle",
     categoryId: "drinks",
     name: "Juice Bottle",
-    description: "Assorted bottled juices.",
+    description: "Bottled juice — orange or apple.",
     price: 2.0,
     tags: ["vegetarian", "vegan"],
+    availableFlavors: JUICE_BOTTLE_FLAVORS,
   },
-  { // Mango, Strawnana, Guanabana, Pineapple Nectar, Strawbery, Guava
+  {
     id: "drink-jumex",
     categoryId: "drinks",
     name: "Jumex",
-    description: "Available in Mango, Strawnana, Guanabana, Pineapple Nectar, Strawbery, Guava.",
+    description:
+      "Fruit nectar. Choose mango, strawnana, guanabana, pineapple nectar, strawberry, or guava.",
     price: 2.95,
     tags: ["vegetarian", "vegan"],
+    availableFlavors: JUMEX_FLAVORS,
   },
   {
-    id: "drink-coconut-water-small",
+    id: "drink-coconut-water",
     categoryId: "drinks",
-    name: "Jumex",
-    description: "Coconut water",
+    name: "Coconut Water",
+    description: "Refreshing coconut water. Choose small or large.",
     price: 2.95,
     tags: ["vegetarian", "vegan"],
-  },
-  {
-    id: "drink-coconut-water-large",
-    categoryId: "drinks",
-    name: "Jumex",
-    description: "Coconut water",
-    price: 3.95,
-    tags: ["vegetarian", "vegan"],
+    availableSizes: COCONUT_WATER_SIZE_OPTIONS,
+    defaultSizeId: "small",
   },
 
   // Desserts
-  { // Wild Strawberries & Cream Cheese Cake, Godiva Double Chocolate Cheese Cake(+0.51), White Chocolate Raspberry Cheesecake, Mango Key Lime Cheesecake(+0.51), Red Velvet Cheesecake
+  {
     id: "dessert-cake-slice",
     categoryId: "desserts",
     name: "Cake Slice",
     vietnameseName: "Bánh Cake",
     description:
-      "From the Cheesecake Factory.",
+      "Specially ordered from The Cheesecake Factory. Pick a slice; some flavors add a small upcharge at checkout.",
     price: 6.99,
     tags: ["vegetarian"],
+    availableFlavors: DESSERT_CAKE_FLAVORS,
   },
 
 ] as MenuItem[]).map((item) => ({
