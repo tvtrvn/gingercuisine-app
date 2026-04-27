@@ -7,7 +7,7 @@ const galleryPhotos = [
   { src: "/images/Ginger-Food-Photos/rare-beef-pho-far.jpg", alt: "Classic beef pho" },
   { src: "/images/Ginger-Food-Photos/far-beef-banhmi copy.jpg", alt: "Beef bánh mì" },
   { src: "/images/Ginger-Food-Photos/chicken-shrimp-padthai.jpg", alt: "Chicken & shrimp pad thai" },
-  { src: "/images/Ginger-Food-Photos/general food image.webp", alt: "General food image" },
+  { src: "/images/environment-photos/general-food-pic.webp", alt: "Ginger Cuisine dishes" },
 ];
 
 export default function AboutPage() {

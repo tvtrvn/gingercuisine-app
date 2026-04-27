@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Personal notes (never commit)
 TODO.md
+
+# Large local video assets (do not commit)
+public/videos/
