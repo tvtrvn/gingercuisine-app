@@ -31,9 +31,9 @@ export interface CartSelectionInput {
   selectedFlavorId?: string;
 }
 
-export interface PricedCartItem extends CartItem {
-  /* PricedCartItem is just CartItem re-built by the server. */
-}
+// `PricedCartItem` is just a `CartItem` re-built by the server from trusted
+// menu data. We keep the alias purely for readability at call sites.
+export type PricedCartItem = CartItem;
 
 export interface PricedOrder {
   items: PricedCartItem[];

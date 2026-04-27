@@ -8,9 +8,21 @@ import {
 } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requireSameOrigin";
 import { orderRequestSchema } from "@/lib/validation";
+import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+
+/**
+ * Build a public order code: timestamp prefix (sortable, readable) plus a
+ * short random suffix to make codes effectively unguessable AND eliminate
+ * the rare collision when two orders land in the same millisecond.
+ */
+function generateOrderCode(): string {
+  const ts = Date.now().toString(36).toUpperCase();
+  const rand = randomBytes(2).toString("hex").toUpperCase(); // 4 hex chars
+  return `GC-${ts}-${rand}`;
+}
 
 export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) {
@@ -55,7 +67,7 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
-    const orderCode = `GC-${Date.now().toString(36).toUpperCase()}`;
+    const orderCode = generateOrderCode();
 
     const order = await createOrder({
       orderCode,
