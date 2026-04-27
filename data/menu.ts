@@ -34,7 +34,7 @@ export const MENU_IMAGES: Record<string, string> = {
   // Specialty Plates
   "specialty-chicken-shrimp-pad-thai":       `${IMG}/chicken-shrimp-padthai.jpg`,
   "specialty-chicken-beef-teriyaki-udon":    `${IMG}/chicken-beef-udon.jpg`,
-  "specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle": `${IMG}/specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle.jpg`,
+  "specialty-assorted-meat-seafood-mixed-vegetable-with-crispy-noodle": `${IMG}/assorted-noodle.jpg`,
   "specialty-tofu-mixed-vegetable-with-crispy-noodle":                  `${IMG}/tofu-veggie-crispy-noodle.jpg`,
   "specialty-lemongrass-tofu-mixed-vegetable-with-pad-thai":            `${IMG}/lemongrass-tofu-mixed-vegetable-with-pad-thai.webp`,
   "specialty-curry-tofu-mixed-vegetable-eggplant-with-brown-rice":       `${IMG}/PhoGinger-tofu-veg-eggplant.jpg`,
@@ -50,6 +50,7 @@ export const MENU_IMAGES: Record<string, string> = {
   "vermicelli-grilled-shrimp":       `${IMG}/shrimp-vermicelli.webp`,
   // Appetizers
   "app-chicken-spring-roll":         `${IMG}/cha-gio-ga.jpg`,
+  "app-shrimp-spring-roll":          `${IMG}/shrimp-crispy-roll.webp`,
   "app-chicken-salad-rolls":         `${IMG}/chicken-goi-cuon.webp`,
   "app-shrimp-salad-rolls":          `${IMG}/shrimp-goi-cuon.webp`,
   "app-butter-lime-chicken-wings":   `${IMG}/garlic-butter-lime-wings.jpg`,
@@ -66,8 +67,12 @@ export const MENU_IMAGES: Record<string, string> = {
   "dessert-cake-slice":              `${IMG}/white-choco-rasb-cheesecake.webp`,
 };
 
-export const SOUP_ADDONS = [
-  { id: "addon-meat", name: "Meat", price: 7.0 },
+/**
+ * Pho & Tom Yum extras without the old generic "Meat" add-on. Each dish below
+ * adds a protein line that matches what is in the bowl (e.g. Beef for Classic
+ * Beef Pho) where applicable.
+ */
+export const SOUP_ADDONS_BASE: AddonOption[] = [
   { id: "addon-oxtail", name: "Oxtail", price: 8.0 },
   { id: "addon-beef-balls", name: "Beef Balls", price: 6.0 },
   { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
@@ -75,16 +80,61 @@ export const SOUP_ADDONS = [
   { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
 ];
 
-/** Shown on starter soups (small soups) as an optional add-on. */
-export const STARTER_SOUP_ADDONS: AddonOption[] = [
+/** Base soup add-ons with extra Beef (for selected pho / tom yum). */
+export const SOUP_ADDONS_BASE_WITH_BEEF: AddonOption[] = [
+  { id: "soup-extra-beef", name: "Beef", price: 7.0 },
+  ...SOUP_ADDONS_BASE,
+];
+
+/** Classic Beef Pho: same add-ons as base + Beef (replaces old generic "Meat" $7). */
+export const SOUP_ADDONS_CLASSIC_BEEF_PHO: AddonOption[] =
+  SOUP_ADDONS_BASE_WITH_BEEF;
+
+/**
+ * Ginger Special pho: extras matching proteins in the bowl (no generic "Meat").
+ */
+export const SOUP_ADDONS_GINGER_SPECIAL_PHO: AddonOption[] = [
+  { id: "soup-extra-beef", name: "Beef", price: 7.0 },
+  { id: "addon-oxtail", name: "Oxtail", price: 8.0 },
+  { id: "addon-beef-balls", name: "Beef Balls", price: 6.0 },
+  { id: "soup-extra-chicken", name: "Chicken", price: 7.0 },
+  { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+  { id: "addon-tofu", name: "Tofu", price: 5.0 },
   { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
 ];
 
-export const SOUP_ADDONS_SEAFOOD = [
-  { id: "shrimp", name: "Shrimp", price: 8.00 }, // shrimp, squid, mussels, and crab meat
-  { id: "squid", name: "Squid", price: 8.00 }, // shrimp, squid, mussels, and crab meat
-  { id: "mussels", name: "Mussels", price: 8.00 }, // shrimp, squid, mussels, and crab meat
-  { id: "crab-meat", name: "Crab Meat", price: 8.00 }, // shrimp, squid, mussels, and crab meat
+/** Chicken Pho and Tom Yum Chicken: extra Chicken, Beef, then shared base. */
+export const SOUP_ADDONS_CHICKEN_SOUP: AddonOption[] = [
+  { id: "soup-extra-chicken", name: "Chicken", price: 7.0 },
+  { id: "soup-extra-beef", name: "Beef", price: 7.0 },
+  ...SOUP_ADDONS_BASE,
+];
+
+/** Pho / Tom Yum Vegan: plant add-ons only (no generic "Meat"). */
+export const SOUP_ADDONS_VEGAN_SOUP: AddonOption[] = [
+  { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+  { id: "addon-tofu", name: "Tofu", price: 5.0 },
+  { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
+];
+
+/** Tom Yum / soup seafood extras (also merged into Tom Yum Seafood). */
+export const SOUP_ADDONS_SEAFOOD: AddonOption[] = [
+  { id: "shrimp", name: "Shrimp", price: 8.0 },
+  { id: "squid", name: "Squid", price: 8.0 },
+  { id: "mussels", name: "Mussels", price: 8.0 },
+  { id: "crab-meat", name: "Crab Meat", price: 8.0 },
+];
+
+/** Tom Yum Seafood: extra Beef, base, then each seafood add-on. */
+export const TOM_YUM_SEAFOOD_ADDONS: AddonOption[] = [
+  { id: "soup-extra-beef", name: "Beef", price: 7.0 },
+  ...SOUP_ADDONS_BASE,
+  ...SOUP_ADDONS_SEAFOOD,
+];
+
+/** Shown on starter soups (small soups) as an optional add-on. */
+export const STARTER_SOUP_ADDONS: AddonOption[] = [
+  { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
 ];
 
 /**
@@ -302,6 +352,12 @@ export const CLASSIC_BEEF_PHO_CUTS: AddonOption[] = [
   { id: "pho-beef-both", name: "Both (rare & well-done)", price: 0.0 },
 ];
 
+/** Chicken Pho & Tom Yum Chicken: grilled vs steamed (same list price). */
+export const CHICKEN_PHO_STYLE: AddonOption[] = [
+  { id: "pho-chicken-grilled", name: "Grilled chicken", price: 0.0 },
+  { id: "pho-chicken-steamed", name: "Steamed chicken", price: 0.0 },
+];
+
 export const LARGE_ONLY_SIZE_OPTION = [
   { id: "large", label: "Large", priceDelta: 1.45 }, //seafood and õxtail price delta 2$ total for Large
 ];
@@ -393,7 +449,7 @@ export const menuItems: MenuItem[] = ([
     tags: [],
     isFeatured: true,
     availableFlavors: CLASSIC_BEEF_PHO_CUTS,
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_CLASSIC_BEEF_PHO,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -406,7 +462,7 @@ export const menuItems: MenuItem[] = ([
       "Rice noodles in aromatic beef broth with AAA grade rare beef, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 20.95,
     tags: [],
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_BASE,
     availableSizes: LARGE_ONLY_SIZE_OPTION,
     defaultSizeId: "large",
   },
@@ -419,7 +475,7 @@ export const menuItems: MenuItem[] = ([
       "Rice noodles in aromatic beef broth with oxtail and beef balls, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 16.95,
     tags: [],
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_BASE_WITH_BEEF,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -433,7 +489,7 @@ export const menuItems: MenuItem[] = ([
     price: 19.95,
     tags: [],
     isFeatured: true,
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_GINGER_SPECIAL_PHO,
   },
   {
     id: "pho-chicken",
@@ -441,10 +497,11 @@ export const menuItems: MenuItem[] = ([
     name: "Chicken Pho",
     vietnameseName: "Phở Gà",
     description:
-      "Rice noodles in aromatic beef broth with steamed chicken or grilled chicken topped with onions, saw leaf, basil, beansprout and lime.",
+      "Rice noodles in aromatic beef broth — choose grilled or steamed chicken — topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
     tags: [],
-    availableAddons: SOUP_ADDONS,
+    availableFlavors: CHICKEN_PHO_STYLE,
+    availableAddons: SOUP_ADDONS_CHICKEN_SOUP,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -457,7 +514,7 @@ export const menuItems: MenuItem[] = ([
     "Rice noodles in aromatic beef broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
     tags: [],
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_BASE_WITH_BEEF,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -470,7 +527,7 @@ export const menuItems: MenuItem[] = ([
       "Rice noodles in aromatic vegetable broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
     tags: ["vegetarian", "vegan"],
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_VEGAN_SOUP,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -484,7 +541,7 @@ export const menuItems: MenuItem[] = ([
       "Rice noodles in aromatic hot and sour broth with shrimp, squid, clams, and mushrooms, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 16.95,
     tags: [],
-    availableAddons: SOUP_ADDONS,
+    availableAddons: TOM_YUM_SEAFOOD_ADDONS,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -494,10 +551,11 @@ export const menuItems: MenuItem[] = ([
     name: "Tom Yum Chicken",
     vietnameseName: "Tom Yum Gà",
     description:
-      "Rice noodles in aromatic hot and sour broth with steamed chicken, topped with onions, saw leaf, basil, beansprout and lime.",
+      "Rice noodles in aromatic hot and sour broth — choose grilled or steamed chicken — topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
     tags: [],
-    availableAddons: SOUP_ADDONS,
+    availableFlavors: CHICKEN_PHO_STYLE,
+    availableAddons: SOUP_ADDONS_CHICKEN_SOUP,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -510,7 +568,7 @@ export const menuItems: MenuItem[] = ([
       "Rice noodles in aromatic hot and sour broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
     tags: [],
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_BASE_WITH_BEEF,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -523,7 +581,7 @@ export const menuItems: MenuItem[] = ([
       "Rice noodles in aromatic vegetable hot and sour broth with tofu and mixed vegetables, topped with onions, saw leaf, basil, beansprout and lime.",
     price: 15.5,
     tags: ["vegetarian", "vegan"],
-    availableAddons: SOUP_ADDONS,
+    availableAddons: SOUP_ADDONS_VEGAN_SOUP,
     availableSizes: SOUP_SIZE_OPTIONS,
     defaultSizeId: "small",
   },
@@ -646,7 +704,7 @@ export const menuItems: MenuItem[] = ([
       "Grilled beef ribs with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
-    availableAddons: dishAddonsFor(["extra-grilled-beef"], "rice"),
+    availableAddons: dishAddonsFor([], "rice"),
   },
   {
     id: "rice-grilled-porkchop-and-coconut-shrimp",
