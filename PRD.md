@@ -221,6 +221,7 @@ Order records include:
 
 - Mobile-first customer experience.
 - Menu items and the Order Pickup "Popular dishes" list must show their photo on phones, not only on tablet/desktop. Mobile uses a full-width 4:3 image; `sm+` collapses to a left-side thumbnail.
+- A weekly [Vercel Cron](https://vercel.com/docs/cron-jobs) runs `GET /api/cron/heartbeat` (guarded by `CRON_SECRET`) to ping MongoDB so a free **Atlas M0** cluster does not auto-pause after ~30 days of inactivity.
 - Tablet-friendly dashboard controls.
 - No dependency on long-running servers for dashboard updates.
 - Reasonable free-tier usage for one restaurant.
@@ -239,6 +240,7 @@ Production deployment requires:
 - Strong `DASHBOARD_PASSWORD`.
 - Strong `DASHBOARD_SESSION_SECRET`.
 - Upstash Redis REST URL and token.
+- `CRON_SECRET` for the weekly MongoDB heartbeat cron (prevents Atlas M0 auto-pause).
 - Stripe environment variables removed from Vercel because Stripe is not used.
 
 ## 13. Acceptance Criteria

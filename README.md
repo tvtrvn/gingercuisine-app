@@ -54,6 +54,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | `RESTAURANT_ORDER_EMAIL`                   | Who receives new order notifications.                            |
 | `RESTAURANT_CONTACT_EMAIL` / `NEXT_PUBLIC_RESTAURANT_CONTACT_EMAIL` | Contact form inbox.                      |
 | `DATABASE_URL`                             | MongoDB connection string.                                       |
+| `CRON_SECRET`                              | Secret for the weekly Vercel Cron that pings Mongo (see below). `openssl rand -hex 32`. **Required in production** so the Atlas M0 free tier does not auto-pause. |
 | `DASHBOARD_PASSWORD`                       | Shared staff password for `/dashboard`. Rotate regularly.        |
 | `DASHBOARD_SESSION_SECRET`                 | 32+ char random string for signing the dashboard session cookie. Generate with `openssl rand -hex 32`. |
 | `DASHBOARD_POLL_INTERVAL_MS` (optional)    | Poll interval ms for the dashboard (default 4000).               |
@@ -163,6 +164,7 @@ app/
   api/
     order/route.ts           POST new pay-in-person order (server-priced, rate-limited)
     contact/route.ts         POST contact form (rate-limited)
+    cron/heartbeat/route.ts  GET weekly Mongo ping (Vercel Cron + CRON_SECRET)
     dashboard/
       login/route.ts         POST password → signed cookie (rate-limited)
       logout/route.ts
@@ -209,6 +211,15 @@ data/
    - Open it → **REST API** tab → copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
 4. Set **all** env vars from `.env.example` in **Vercel → Project → Settings → Environment Variables**, for both Production and Preview.
 5. Deploy.
+
+### Keeping the free MongoDB cluster alive
+
+MongoDB Atlas **M0 (free) clusters** can auto-pause after about **30 days of no connections**. This app includes a [Vercel Cron](https://vercel.com/docs/cron-jobs) that runs every **Monday at 12:00 UTC** and calls `GET /api/cron/heartbeat`, which runs a `ping` against the database. That keeps a minimal connection even when the site is quiet (pre-launch, closed for vacation, etc.).
+
+- Add **`CRON_SECRET`** in Vercel (Production) — a long random string; generate with `openssl rand -hex 32`. Vercel automatically sends it as `Authorization: Bearer <CRON_SECRET>` to cron invocations.
+- The route returns **401** without a valid Bearer token (browsers cannot hit it by accident).
+- After deploy, open **Vercel → your project → Settings → Cron Jobs** and confirm `/api/cron/heartbeat` is listed; you can use **Run** to test without waiting for Monday.
+- The schedule is in [`vercel.json`](vercel.json): `0 12 * * 1` (Mondays, UTC; e.g. 8:00 AM EDT in summer).
 
 After deploying, smoke-test:
 
