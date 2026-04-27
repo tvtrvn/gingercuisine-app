@@ -17,6 +17,8 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 
 > Payment is **always collected in person** at the restaurant at pickup. There is no online payment step.
 
+**Menu & Order Pickup pages are mobile-first:** every menu item and every "Popular dishes" entry on `/order` shows a real photo (via `next/image`). On phones the photo is full-width with a 4:3 aspect ratio so dishes are easy to recognize and tap; on tablet/desktop it collapses to a compact left-side thumbnail. Image paths live in `MENU_IMAGES` in `data/menu.ts`.
+
 **Restaurant dashboard** (`/dashboard`):
 
 - Staff tablet view of all incoming online orders.

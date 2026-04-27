@@ -6,6 +6,7 @@ import { PickupForm } from "@/components/order/PickupForm";
 import { menuItems } from "@/data/menu";
 import { AddonOption, MenuItem, SizeOption } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -106,128 +107,152 @@ export default function OrderPage() {
             </Link>
           </div>
           <ul className="divide-y divide-neutral-100 text-sm">
-            {featuredItems.map((item) => (
+            {featuredItems.map((item, index) => (
               <li
                 key={item.id}
-                className="space-y-2 py-3"
+                className="space-y-3 py-4 first:pt-0"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-neutral-900">{item.name}</p>
-                    {item.vietnameseName && (
-                      <p className="text-xs text-emerald-700">
-                        {item.vietnameseName}
-                      </p>
-                    )}
-                    <p className="mt-1 text-xs text-neutral-600">
-                      {item.description}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold text-neutral-900">
-                    {formatCurrency(getDisplayPrice(item))}
-                  </p>
-                </div>
-                {item.availableSizes && item.availableSizes.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {item.availableSizes.map((size) => {
-                      const selected =
-                        (selectedSizeByItem[item.id] ||
-                          item.defaultSizeId ||
-                          item.availableSizes?.[0]?.id) === size.id;
-                      return (
-                        <button
-                          key={size.id}
-                          type="button"
-                          onClick={() =>
-                            setSelectedSizeByItem((prev) => ({
-                              ...prev,
-                              [item.id]: size.id,
-                            }))
-                          }
-                          className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                            selected
-                              ? "bg-emerald-600 text-white"
-                              : "bg-neutral-100 text-neutral-700"
-                          }`}
-                        >
-                          {size.label}
-                          {size.priceDelta > 0
-                            ? ` (+${formatCurrency(size.priceDelta)})`
-                            : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {item.availableFlavors && item.availableFlavors.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {item.availableFlavors.map((flavor) => {
-                      const selected =
-                        (selectedFlavorByItem[item.id] ||
-                          item.availableFlavors?.[0]?.id) === flavor.id;
-                      return (
-                        <button
-                          key={flavor.id}
-                          type="button"
-                          onClick={() =>
-                            setSelectedFlavorByItem((prev) => ({
-                              ...prev,
-                              [item.id]: flavor.id,
-                            }))
-                          }
-                          className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                            selected
-                              ? "bg-emerald-600 text-white"
-                              : "bg-neutral-100 text-neutral-700"
-                          }`}
-                        >
-                          {flavor.name}
-                          {flavor.price > 0
-                            ? ` (+${formatCurrency(flavor.price)})`
-                            : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {item.availableAddons && item.availableAddons.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {item.availableAddons.map((addon) => {
-                      const selectedIds = selectedAddonsByItem[item.id] ?? [];
-                      const selected = selectedIds.includes(addon.id);
-                      return (
-                        <button
-                          key={addon.id}
-                          type="button"
-                          onClick={() =>
-                            setSelectedAddonsByItem((prev) => {
-                              const current = prev[item.id] ?? [];
-                              const next = current.includes(addon.id)
-                                ? current.filter((id) => id !== addon.id)
-                                : [...current, addon.id];
-                              return { ...prev, [item.id]: next };
-                            })
-                          }
-                          className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                            selected
-                              ? "bg-amber-200 text-amber-900"
-                              : "bg-neutral-100 text-neutral-700"
-                          }`}
-                        >
-                          {addon.name} (+{formatCurrency(addon.price)})
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => handleAddToCart(item)}
-                    className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/30 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+                  {/* Full-width, prominent on mobile; compact thumb on sm+ */}
+                  <div
+                    className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border-2 border-emerald-200/60 bg-gradient-to-br from-amber-50 to-emerald-50 shadow-sm sm:aspect-square sm:h-28 sm:w-28 sm:shrink-0 sm:border sm:border-emerald-100/80"
+                    aria-hidden={!item.image}
                   >
-                    Add
-                  </button>
+                    {item.image ? (
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, 7rem"
+                        priority={index < 3}
+                      />
+                    ) : (
+                      <div className="h-full w-full min-h-[10.5rem] bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100 sm:min-h-0" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-neutral-900">
+                          {item.name}
+                        </p>
+                        {item.vietnameseName && (
+                          <p className="text-xs text-emerald-700">
+                            {item.vietnameseName}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-neutral-600">
+                          {item.description}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-sm font-semibold text-neutral-900">
+                        {formatCurrency(getDisplayPrice(item))}
+                      </p>
+                    </div>
+                    {item.availableSizes && item.availableSizes.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {item.availableSizes.map((size) => {
+                          const selected =
+                            (selectedSizeByItem[item.id] ||
+                              item.defaultSizeId ||
+                              item.availableSizes?.[0]?.id) === size.id;
+                          return (
+                            <button
+                              key={size.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedSizeByItem((prev) => ({
+                                  ...prev,
+                                  [item.id]: size.id,
+                                }))
+                              }
+                              className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                                selected
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-neutral-100 text-neutral-700"
+                              }`}
+                            >
+                              {size.label}
+                              {size.priceDelta > 0
+                                ? ` (+${formatCurrency(size.priceDelta)})`
+                                : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {item.availableFlavors && item.availableFlavors.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {item.availableFlavors.map((flavor) => {
+                          const selected =
+                            (selectedFlavorByItem[item.id] ||
+                              item.availableFlavors?.[0]?.id) === flavor.id;
+                          return (
+                            <button
+                              key={flavor.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedFlavorByItem((prev) => ({
+                                  ...prev,
+                                  [item.id]: flavor.id,
+                                }))
+                              }
+                              className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                                selected
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-neutral-100 text-neutral-700"
+                              }`}
+                            >
+                              {flavor.name}
+                              {flavor.price > 0
+                                ? ` (+${formatCurrency(flavor.price)})`
+                                : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {item.availableAddons && item.availableAddons.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {item.availableAddons.map((addon) => {
+                          const selectedIds = selectedAddonsByItem[item.id] ?? [];
+                          const selected = selectedIds.includes(addon.id);
+                          return (
+                            <button
+                              key={addon.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedAddonsByItem((prev) => {
+                                  const current = prev[item.id] ?? [];
+                                  const next = current.includes(addon.id)
+                                    ? current.filter((id) => id !== addon.id)
+                                    : [...current, addon.id];
+                                  return { ...prev, [item.id]: next };
+                                })
+                              }
+                              className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                                selected
+                                  ? "bg-amber-200 text-amber-900"
+                                  : "bg-neutral-100 text-neutral-700"
+                              }`}
+                            >
+                              {addon.name} (+{formatCurrency(addon.price)})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex justify-end pt-1 sm:pt-0">
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(item)}
+                        className="inline-flex w-full min-h-[2.5rem] items-center justify-center rounded-full bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-600/30 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 sm:min-h-0 sm:w-auto"
+                      >
+                        Add to cart
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </li>
             ))}

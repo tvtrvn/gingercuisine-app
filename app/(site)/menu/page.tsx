@@ -202,7 +202,7 @@ export default function MenuPage() {
                     key={item.id}
                     className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm"
                   >
-                    <div className="hidden h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl sm:block">
+                    <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl sm:h-24 sm:w-24">
                       {item.image ? (
                         <Image
                           src={item.image}

@@ -220,6 +220,7 @@ Order records include:
 ## 11. Non-Functional Requirements
 
 - Mobile-first customer experience.
+- Menu items and the Order Pickup "Popular dishes" list must show their photo on phones, not only on tablet/desktop. Mobile uses a full-width 4:3 image; `sm+` collapses to a left-side thumbnail.
 - Tablet-friendly dashboard controls.
 - No dependency on long-running servers for dashboard updates.
 - Reasonable free-tier usage for one restaurant.
