@@ -8,7 +8,7 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 
 ## What the site does
 
-**Customer site** (`/`, `/menu`, `/order`, etc.):
+**Customer site** (`/`, `/menu`, `/order`, `/location`, `/about`, `/contact`):
 
 - Browse menu, add items to cart (with sizes, flavors, add-ons, notes).
 - Fill pickup details (name, phone, email, time).
@@ -16,6 +16,8 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 - Receive an order confirmation page; restaurant gets a Resend email.
 
 > Payment is **always collected in person** at the restaurant at pickup. There is no online payment step.
+
+**`/about`** includes an embedded **Vimeo** video (`components/about/VideoEmbed.tsx`): a poster + facade so the Vimeo player only loads after the block scrolls into view (**muted autoplay**) or after the visitor taps play (earlier gesture). Customize the Vimeo ID and poster image in `app/(site)/about/page.tsx`.
 
 **Menu & Order Pickup pages are mobile-first:** every menu item and every "Popular dishes" entry on `/order` shows a real photo (via `next/image`). On phones the photo is full-width with a 4:3 aspect ratio so dishes are easy to recognize and tap; on tablet/desktop it collapses to a compact left-side thumbnail. Image paths live in `MENU_IMAGES` in `data/menu.ts`.
 
@@ -66,7 +68,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 ## Ordering & data flow
 
 1. Customer places order on `/order` → client POSTs a list of **selection references** (`menuItemId`, `quantity`, `selectedSizeId`, `selectedAddonIds`, `selectedFlavorId`, `notes`) to `POST /api/order`. **Prices and names are not sent from the client** — they are recomputed on the server.
-2. `POST /api/order` validates with Zod, calls `priceCart()` which looks up each item in `data/menu.ts` and computes `unitPrice = basePrice + sizeDelta + addons + flavor`. Totals (subtotal · tax · total) come from that trusted calculation. It then generates an `orderCode` (`GC-ABC123`), a random `viewToken` (32 hex chars), and saves to MongoDB with `paymentMethod: "pay_in_person"`, `paymentStatus: "unpaid"`, `orderStatus: "new"`, `posEntryStatus: "not_entered"`, `source: "website"`.
+2. `POST /api/order` validates with Zod, calls `priceCart()` which looks up each item in `data/menu.ts` and computes `unitPrice = basePrice + sizeDelta + addons + flavor`. Totals (subtotal · tax · total) come from that trusted calculation. It then generates an `orderCode` in the form **`GC-{base36-from-timestamp}-{4-hex}`** (unique, sortable, hard to guess), a random `viewToken` (32 hex chars), and saves to MongoDB with `paymentMethod: "pay_in_person"`, `paymentStatus: "unpaid"`, `orderStatus: "new"`, `posEntryStatus: "not_entered"`, `source: "website"`.
 3. Restaurant receives a Resend email with the full order (no Stripe references).
 4. Customer is redirected to `/order/confirmation?orderId=…&token=…`. The confirmation page only renders the order if the `token` matches the stored `viewToken` (constant-time compare), preventing enumeration of other customers' orders.
 5. Staff tablet on `/dashboard` polls `/api/dashboard/orders` every 4s and shows the new order with a chime + toast. Staff manually enters it in the POS and presses **Mark entered in POS**, then moves the order through the workflow.
@@ -151,6 +153,9 @@ Duplicate notifications are avoided by the board tracking two client-side `Set<o
 ## Directory map
 
 ```
+instrumentation.ts           Production boot diagnostics (NODE_ENV): logs missing DATABASE_URL / dashboard /
+                             Upstash env / warns on missing cron or Resend (see repo file)
+
 app/
   layout.tsx                 minimal root layout
   (site)/                    customer-facing site group
@@ -176,6 +181,7 @@ components/
   cart/ (context, floating cart)
   layout/ (nav, footer, sticky button)
   order/ (cart summary, pickup form)
+  about/VideoEmbed.tsx           Vimeo embed facade (scroll-to-play muted / tap-to-play) for `/about`
   dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, StatusBadge, ElapsedTime, DashboardHeader)
   ui/
 
