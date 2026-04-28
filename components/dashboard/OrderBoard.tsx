@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NewOrderToast } from "./NewOrderToast";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailsDrawer } from "./OrderDetailsDrawer";
+import { useNewOrderAlarm } from "./useNewOrderAlarm";
 
 type SortMode = "newest" | "oldest" | "pickup";
 type ScopeMode = "active" | "all";
@@ -69,32 +70,6 @@ export function OrderBoard({
   );
   const notifiedIdsRef = useRef<Set<string>>(new Set());
 
-  const playChime = useCallback(() => {
-    try {
-      const AudioCtx =
-        typeof window !== "undefined"
-          ? (window.AudioContext ||
-              (window as unknown as { webkitAudioContext?: typeof AudioContext })
-                .webkitAudioContext)
-          : undefined;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.setValueAtTime(1318, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.55);
-    } catch {
-      // ignore — chime is best-effort.
-    }
-  }, []);
-
   const fetchOrders = useCallback(async () => {
     setIsFetching(true);
     try {
@@ -130,7 +105,6 @@ export function OrderBoard({
         const latest = freshNewOrders[freshNewOrders.length - 1];
         notifiedIdsRef.current.add(latest.id);
         setToastOrder(latest);
-        playChime();
       }
     } catch (err) {
       console.error("[OrderBoard] poll failed:", err);
@@ -138,7 +112,7 @@ export function OrderBoard({
     } finally {
       setIsFetching(false);
     }
-  }, [playChime, historyWindowHours]);
+  }, [historyWindowHours]);
 
   // Poll only when we're NOT in search mode. Search mode freezes the board
   // so staff can focus on results without the list shifting underneath them.
@@ -291,6 +265,13 @@ export function OrderBoard({
     return sorted;
   }, [orders, scope, statusFilter, sortMode]);
 
+  const newCount = useMemo(
+    () => orders.filter((o) => o.orderStatus === "new").length,
+    [orders],
+  );
+
+  const { needsGesture } = useNewOrderAlarm(newCount > 0);
+
   const counts = useMemo(() => {
     const c: Record<OrderStatus, number> = {
       new: 0,
@@ -432,6 +413,12 @@ export function OrderBoard({
           </p>
         </div>
       </div>
+
+      {needsGesture && newCount > 0 && (
+        <p className="rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+          Tap or click anywhere to enable new-order sound.
+        </p>
+      )}
 
       {/* Contextual banner */}
       {!isSearchMode && (

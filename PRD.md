@@ -72,7 +72,7 @@ Dashboard capabilities:
 
 - Login with staff password.
 - See incoming orders in workflow columns: **New → Acknowledged → Ready → Completed**, plus **Cancelled**.
-- Receive new-order visual/audio notification.
+- Receive new-order toast (for orders that appear after mount) and a **repeating chime** (~every 3 seconds) while **any** order is still in **New**—stops when none remain; may require a tap to unlock audio per browser policy.
 - View complete order details.
 - Mark order as acknowledged, ready, completed, or cancelled.
 - Search older orders by name, phone, or order number.
@@ -99,9 +99,8 @@ Dashboard capabilities:
 3. Dashboard polls periodically for updates.
 4. New orders appear in the New column with notification.
 5. Staff opens order details and manually enters the order into the existing POS.
-6. Staff progresses status through **acknowledged → ready → completed**.
-7. Staff can cancel orders when needed.
-8. Staff can search older orders without loading all historical orders into the board.
+6. Staff progresses orders through **acknowledged → ready → completed** (or **cancelled**); a repeating audio alarm plays while **any** order stays in **New** and stops when none remain (browser may require a tap to enable sound).
+7. Staff can search older orders without loading all historical orders into the board.
 
 ## 7. Functional Requirements
 
@@ -151,7 +150,8 @@ Dashboard capabilities:
 - Dashboard is separate from customer-facing routes.
 - Dashboard shows the staff workflow clearly on tablets.
 - Staff can update order status across `new`, `acknowledged`, `ready`, `completed`, and `cancelled`.
-- Dashboard must prevent duplicate new-order notifications.
+- Dashboard must prevent duplicate new-order **toast** notifications (polling).
+- Repeating **audio** alert while any order remains in `new` (separate from toast logic); stops when none left.
 - Dashboard must keep the main view bounded by showing active orders plus recent history.
 - Older orders must be searchable through the database-backed search endpoint.
 
@@ -254,6 +254,7 @@ Production deployment requires:
 - Restaurant receives an order email.
 - Dashboard login works with configured password.
 - New orders appear in the dashboard polling view.
+- Audio chime repeats while any order is still `new` and stops when acknowledged or cancelled.
 - Staff can move an order through `new → acknowledged → ready → completed` (or `cancelled`).
 - Older order search works without loading all historical orders into the board.
 - The confirmation page shows the `PICKUP_READY_NOTICE` to the customer when the order resolves with a valid view token.

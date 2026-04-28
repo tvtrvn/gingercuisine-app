@@ -25,7 +25,7 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 
 - Staff tablet view of all incoming online orders.
 - Real-time-ish updates via polling (default 4s).
-- Pop-up + chime for new orders until acknowledged.
+- Pop-up toast for brand-new orders (since dashboard mount) plus a **repeating audio chime every ~3s** while **any** order is still in **New** (stops when the last one is acknowledged/cancelled); browsers may require a tap/keypress first to unlock sound (banner shown when needed).
 - Kanban columns: **New → Acknowledged → Ready → Completed**, plus **Cancelled**.
 - Each order card shows customer, pickup time, full item list, totals, payment status, and elapsed time.
 - Staff can acknowledge, mark ready, complete, or cancel orders. They still enter the order into the existing POS by hand — there is no in-app POS toggle.
@@ -71,7 +71,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 2. `POST /api/order` validates with Zod, calls `priceCart()` which looks up each item in `data/menu.ts` and computes `unitPrice = basePrice + sizeDelta + addons + flavor`. Totals (subtotal · tax · total) come from that trusted calculation. It then generates an `orderCode` in the form **`GC-{base36-from-timestamp}-{4-hex}`** (unique, sortable, hard to guess), a random `viewToken` (32 hex chars), and saves to MongoDB with `paymentMethod: "pay_in_person"`, `paymentStatus: "unpaid"`, `orderStatus: "new"`, `source: "website"`.
 3. Restaurant receives a Resend email with the full order (no Stripe references).
 4. Customer is redirected to `/order/confirmation?orderId=…&token=…`. The confirmation page only renders the order if the `token` matches the stored `viewToken` (constant-time compare), preventing enumeration of other customers' orders. When the token matches, the customer also sees the **`PICKUP_READY_NOTICE`** ("Your order should be ready in 10–15 minutes.") so they know roughly when to come pick up.
-5. Staff tablet on `/dashboard` polls `/api/dashboard/orders` every 4s and shows the new order with a chime + toast. Staff acknowledge it, manually enter it in the existing POS, then walk it through **Acknowledged → Ready → Completed** (or **Cancelled**).
+5. Staff tablet on `/dashboard` polls `/api/dashboard/orders` every 4s. A short chime **repeats while at least one order remains in `new`**, alongside a one-time toast when a brand-new order arrives; staff acknowledge it, manually enter it in the existing POS, then walk it through **Acknowledged → Ready → Completed** (or **Cancelled**).
 
 ---
 
@@ -146,7 +146,7 @@ The dashboard uses **polling** (default 4s) rather than WebSockets/SSE/Pusher/Ab
 - MongoDB change streams need a long-lived Node process with replica-set access — heavier than you need.
 - 4s is more than fine for a tablet at a host stand; it only takes a poll cycle or two to appear.
 
-Duplicate notifications are avoided by the board tracking two client-side `Set<orderId>` refs: orders it has ever seen (to only fire a toast for genuinely new orders after mount) and orders it has already notified for.
+Duplicate notifications are avoided by the board tracking two client-side `Set<orderId>` refs: orders it has ever seen (to only fire a toast for genuinely new orders after mount) and orders it has already notified for. Audio is separate: a **Web Audio** loop (`useNewOrderAlarm`) plays while `orderStatus === "new"` for any order until staff clear the **New** column.
 
 ---
 
@@ -182,7 +182,7 @@ components/
   layout/ (nav, footer, sticky button)
   order/ (cart summary, pickup form)
   about/VideoEmbed.tsx           Vimeo embed facade (scroll-to-play muted / tap-to-play) for `/about`
-  dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, StatusBadge, ElapsedTime, DashboardHeader)
+  dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, useNewOrderAlarm, StatusBadge, ElapsedTime, DashboardHeader)
   ui/
 
 lib/
