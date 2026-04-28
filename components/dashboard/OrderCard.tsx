@@ -1,17 +1,16 @@
 "use client";
 
 import { CURRENCY } from "@/lib/config";
-import { Order, OrderStatus, PosEntryStatus } from "@/lib/types";
+import { Order, OrderStatus } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { ElapsedTime } from "./ElapsedTime";
-import { OrderStatusBadge, PosEntryBadge } from "./StatusBadge";
+import { OrderStatusBadge } from "./StatusBadge";
 
 interface OrderCardProps {
   order: Order;
   isNewUnacknowledged: boolean;
   onOpenDetails: (order: Order) => void;
   onUpdateStatus: (orderId: string, next: OrderStatus) => void;
-  onTogglePos: (orderId: string, next: PosEntryStatus) => void;
   disabled?: boolean;
 }
 
@@ -23,8 +22,6 @@ function nextStatusLabel(status: OrderStatus): {
     case "new":
       return { next: "acknowledged", label: "Acknowledge" };
     case "acknowledged":
-      return { next: "preparing", label: "Start preparing" };
-    case "preparing":
       return { next: "ready", label: "Mark ready" };
     case "ready":
       return { next: "completed", label: "Mark completed" };
@@ -38,7 +35,6 @@ export function OrderCard({
   isNewUnacknowledged,
   onOpenDetails,
   onUpdateStatus,
-  onTogglePos,
   disabled,
 }: OrderCardProps) {
   const { next, label } = nextStatusLabel(order.orderStatus);
@@ -101,7 +97,6 @@ export function OrderCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <PosEntryBadge status={order.posEntryStatus} />
         <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700">
           Pay in person · Unpaid
         </span>
@@ -125,25 +120,6 @@ export function OrderCard({
             {label}
           </button>
         )}
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() =>
-            onTogglePos(
-              order.id,
-              order.posEntryStatus === "entered" ? "not_entered" : "entered",
-            )
-          }
-          className={`inline-flex flex-1 min-w-[120px] items-center justify-center rounded-full px-3 py-2 text-sm font-semibold shadow-sm active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500 ${
-            order.posEntryStatus === "entered"
-              ? "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
-              : "bg-amber-500 text-white hover:bg-amber-600"
-          }`}
-        >
-          {order.posEntryStatus === "entered"
-            ? "Undo POS entry"
-            : "Mark entered in POS"}
-        </button>
       </div>
     </article>
   );

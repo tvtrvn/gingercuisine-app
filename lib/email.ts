@@ -74,8 +74,6 @@ export async function sendOrderEmail(order: Order) {
     `Payment: Pay in person at pickup (unpaid)`,
     ``,
     `Note: ${PRICES_NOTICE}`,
-    ``,
-    `Please enter this order into the POS.`,
   ]
     .filter(Boolean)
     .join("\n");

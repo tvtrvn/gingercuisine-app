@@ -19,8 +19,7 @@ model Order {
   paymentStatus     String    @default("unpaid")        // "unpaid" | "paid"
 
   // Kitchen workflow
-  orderStatus       String    @default("new")           // "new" | "acknowledged" | "preparing" | "ready" | "completed" | "cancelled"
-  posEntryStatus    String    @default("not_entered")   // "not_entered" | "entered"
+  orderStatus       String    @default("new")           // "new" | "acknowledged" | "ready" | "completed" | "cancelled"
   source            String    @default("website")       // "website"
 
   // Pickup

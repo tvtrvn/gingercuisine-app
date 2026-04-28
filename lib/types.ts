@@ -81,12 +81,9 @@ export interface PickupDetails {
 export type OrderStatus =
   | "new"
   | "acknowledged"
-  | "preparing"
   | "ready"
   | "completed"
   | "cancelled";
-
-export type PosEntryStatus = "not_entered" | "entered";
 
 export type OrderSource = "website";
 
@@ -107,7 +104,6 @@ export interface Order {
   paymentStatus: PaymentStatus;
 
   orderStatus: OrderStatus;
-  posEntryStatus: PosEntryStatus;
   source: OrderSource;
 
   staffNote?: string;
@@ -124,7 +120,6 @@ export interface Order {
 export const ORDER_STATUS_ORDER: OrderStatus[] = [
   "new",
   "acknowledged",
-  "preparing",
   "ready",
   "completed",
   "cancelled",
@@ -133,6 +128,5 @@ export const ORDER_STATUS_ORDER: OrderStatus[] = [
 export const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
   "new",
   "acknowledged",
-  "preparing",
   "ready",
 ];

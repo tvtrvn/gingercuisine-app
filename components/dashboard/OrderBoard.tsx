@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  ACTIVE_ORDER_STATUSES,
-  Order,
-  OrderStatus,
-  PosEntryStatus,
-} from "@/lib/types";
+import { ACTIVE_ORDER_STATUSES, Order, OrderStatus } from "@/lib/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NewOrderToast } from "./NewOrderToast";
 import { OrderCard } from "./OrderCard";
@@ -21,7 +16,6 @@ const COLUMN_DEFS: { status: OrderStatus; label: string; accent: string }[] = [
     label: "Acknowledged",
     accent: "from-amber-100 to-white",
   },
-  { status: "preparing", label: "Preparing", accent: "from-sky-100 to-white" },
   { status: "ready", label: "Ready", accent: "from-emerald-100 to-white" },
   {
     status: "completed",
@@ -198,7 +192,6 @@ export function OrderBoard({
       orderId: string,
       body: {
         orderStatus?: OrderStatus;
-        posEntryStatus?: PosEntryStatus;
       },
     ) => {
       setUpdatingId(orderId);
@@ -247,13 +240,6 @@ export function OrderBoard({
   const handleUpdateStatus = useCallback(
     (orderId: string, next: OrderStatus) => {
       patchOrder(orderId, { orderStatus: next });
-    },
-    [patchOrder],
-  );
-
-  const handleTogglePos = useCallback(
-    (orderId: string, next: PosEntryStatus) => {
-      patchOrder(orderId, { posEntryStatus: next });
     },
     [patchOrder],
   );
@@ -309,7 +295,6 @@ export function OrderBoard({
     const c: Record<OrderStatus, number> = {
       new: 0,
       acknowledged: 0,
-      preparing: 0,
       ready: 0,
       completed: 0,
       cancelled: 0,
@@ -495,7 +480,6 @@ export function OrderBoard({
                   isNewUnacknowledged={false}
                   onOpenDetails={(o) => setSelectedOrder(o)}
                   onUpdateStatus={handleUpdateStatus}
-                  onTogglePos={handleTogglePos}
                   disabled={updatingId === order.id}
                 />
               ))}
@@ -536,7 +520,6 @@ export function OrderBoard({
                       isNewUnacknowledged={order.orderStatus === "new"}
                       onOpenDetails={(o) => setSelectedOrder(o)}
                       onUpdateStatus={handleUpdateStatus}
-                      onTogglePos={handleTogglePos}
                       disabled={updatingId === order.id}
                     />
                   ))}
@@ -551,7 +534,6 @@ export function OrderBoard({
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onUpdateStatus={handleUpdateStatus}
-        onTogglePos={handleTogglePos}
         onCancelOrder={handleCancelOrder}
       />
 

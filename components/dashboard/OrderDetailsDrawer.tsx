@@ -1,22 +1,20 @@
 "use client";
 
 import { CURRENCY } from "@/lib/config";
-import { Order, OrderStatus, PosEntryStatus } from "@/lib/types";
+import { Order, OrderStatus } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { useEffect } from "react";
-import { OrderStatusBadge, PosEntryBadge } from "./StatusBadge";
+import { OrderStatusBadge } from "./StatusBadge";
 
 interface Props {
   order: Order | null;
   onClose: () => void;
   onUpdateStatus: (orderId: string, next: OrderStatus) => void;
-  onTogglePos: (orderId: string, next: PosEntryStatus) => void;
   onCancelOrder: (orderId: string) => void;
 }
 
 const ACTION_STATUSES: { status: OrderStatus; label: string }[] = [
   { status: "acknowledged", label: "Acknowledge" },
-  { status: "preparing", label: "Preparing" },
   { status: "ready", label: "Ready" },
   { status: "completed", label: "Completed" },
 ];
@@ -25,7 +23,6 @@ export function OrderDetailsDrawer({
   order,
   onClose,
   onUpdateStatus,
-  onTogglePos,
   onCancelOrder,
 }: Props) {
   useEffect(() => {
@@ -68,7 +65,6 @@ export function OrderDetailsDrawer({
                 {order.id}
               </h2>
               <OrderStatusBadge status={order.orderStatus} />
-              <PosEntryBadge status={order.posEntryStatus} />
             </div>
             <p className="mt-1 text-lg font-semibold text-neutral-900">
               {order.pickupDetails.name}
@@ -193,32 +189,6 @@ export function OrderDetailsDrawer({
                 </button>
               ))}
             </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-neutral-900">
-              POS entry
-            </h3>
-            <button
-              type="button"
-              onClick={() =>
-                onTogglePos(
-                  order.id,
-                  order.posEntryStatus === "entered"
-                    ? "not_entered"
-                    : "entered",
-                )
-              }
-              className={`mt-2 inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold shadow-sm ${
-                order.posEntryStatus === "entered"
-                  ? "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
-                  : "bg-amber-500 text-white hover:bg-amber-600"
-              }`}
-            >
-              {order.posEntryStatus === "entered"
-                ? "Undo POS entry"
-                : "Mark entered in POS"}
-            </button>
           </div>
 
           {order.orderStatus !== "cancelled" &&

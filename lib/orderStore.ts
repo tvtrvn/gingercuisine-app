@@ -7,7 +7,6 @@ import {
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
-  PosEntryStatus,
 } from "./types";
 
 type OrderRecord = {
@@ -17,7 +16,6 @@ type OrderRecord = {
   paymentMethod: string;
   paymentStatus: string;
   orderStatus: string;
-  posEntryStatus: string;
   source: string;
   staffNote: string | null;
   viewToken: string | null;
@@ -36,6 +34,16 @@ type OrderRecord = {
   itemsJson: string;
 };
 
+/**
+ * `"preparing"` was an older intermediate status that was removed when the
+ * staff workflow was simplified. Any document still holding it is surfaced
+ * as `"acknowledged"` so the dashboard can render and progress it normally.
+ */
+function normalizeOrderStatus(raw: string): OrderStatus {
+  if (raw === "preparing") return "acknowledged";
+  return raw as OrderStatus;
+}
+
 function dbToOrder(record: OrderRecord): Order {
   return {
     id: record.orderCode,
@@ -43,8 +51,7 @@ function dbToOrder(record: OrderRecord): Order {
     updatedAt: record.updatedAt.toISOString(),
     paymentMethod: record.paymentMethod as PaymentMethod,
     paymentStatus: record.paymentStatus as PaymentStatus,
-    orderStatus: record.orderStatus as OrderStatus,
-    posEntryStatus: record.posEntryStatus as PosEntryStatus,
+    orderStatus: normalizeOrderStatus(record.orderStatus),
     source: "website",
     staffNote: record.staffNote ?? undefined,
     viewToken: record.viewToken ?? undefined,
@@ -85,7 +92,6 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
       paymentMethod: "pay_in_person",
       paymentStatus: "unpaid",
       orderStatus: "new",
-      posEntryStatus: "not_entered",
       source: "website",
       viewToken,
       itemsJson: JSON.stringify(input.items),
@@ -142,7 +148,7 @@ export async function listOrders(
 
 /**
  * Dashboard board fetch: returns every active order (regardless of age, so a
- * rare 3-day-old "preparing" order never disappears) plus every completed /
+ * rare 3-day-old "acknowledged" order never disappears) plus every completed /
  * cancelled order placed in the last `windowHours` hours. Anything older is
  * reachable via `searchOrders`.
  */
@@ -208,7 +214,6 @@ export async function searchOrders(
 
 export interface UpdateOrderFields {
   orderStatus?: OrderStatus;
-  posEntryStatus?: PosEntryStatus;
   paymentStatus?: PaymentStatus;
   staffNote?: string;
 }

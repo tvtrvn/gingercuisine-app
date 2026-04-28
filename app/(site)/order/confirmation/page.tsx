@@ -1,4 +1,9 @@
-import { CURRENCY, PAY_IN_PERSON_NOTICE, PRICES_NOTICE } from "@/lib/config";
+import {
+  CURRENCY,
+  PAY_IN_PERSON_NOTICE,
+  PICKUP_READY_NOTICE,
+  PRICES_NOTICE,
+} from "@/lib/config";
 import { getOrderById } from "@/lib/orderStore";
 import { formatCurrency } from "@/lib/utils";
 
@@ -48,6 +53,11 @@ export default async function ConfirmationPage({
             Please pay in person at the restaurant when you pick up your order.
           </span>
         </p>
+        {order && (
+          <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
+            {PICKUP_READY_NOTICE}
+          </p>
+        )}
         <p className="text-xs text-neutral-500">{PRICES_NOTICE}</p>
       </header>
 

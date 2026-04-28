@@ -74,25 +74,20 @@ export const contactFormSchema = z.object({
 export const orderStatusSchema = z.enum([
   "new",
   "acknowledged",
-  "preparing",
   "ready",
   "completed",
   "cancelled",
 ]);
 
-export const posEntryStatusSchema = z.enum(["not_entered", "entered"]);
-
 export const orderUpdateSchema = z
   .object({
     orderStatus: orderStatusSchema.optional(),
-    posEntryStatus: posEntryStatusSchema.optional(),
     staffNote: z.string().max(500).optional(),
     paymentStatus: z.enum(["unpaid", "paid"]).optional(),
   })
   .refine(
     (v) =>
       v.orderStatus !== undefined ||
-      v.posEntryStatus !== undefined ||
       v.staffNote !== undefined ||
       v.paymentStatus !== undefined,
     { message: "No update fields provided." },

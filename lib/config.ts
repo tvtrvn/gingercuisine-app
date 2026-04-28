@@ -19,9 +19,9 @@ export const DASHBOARD_POLL_INTERVAL_MS = Number(
 );
 
 // How far back the live dashboard board fetches completed/cancelled orders.
-// Active orders (new/acknowledged/preparing/ready) are ALWAYS shown regardless
-// of age; this window only clips the history of closed orders so the board
-// stays fast. Older orders remain reachable via the search bar.
+// Active orders (new/acknowledged/ready) are ALWAYS shown regardless of age;
+// this window only clips the history of closed orders so the board stays fast.
+// Older orders remain reachable via the search bar.
 export const DASHBOARD_HISTORY_WINDOW_HOURS = Math.max(
   1,
   Number(process.env.DASHBOARD_HISTORY_WINDOW_HOURS ?? "48"),
@@ -31,6 +31,8 @@ export const DASHBOARD_HISTORY_WINDOW_HOURS = Math.max(
 export const PRICES_NOTICE = "Prices subject to change without notice.";
 export const PAY_IN_PERSON_NOTICE =
   "Payment is collected in person at the restaurant when you pick up your order.";
+export const PICKUP_READY_NOTICE =
+  "Your order should be ready in 10–15 minutes.";
 
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";

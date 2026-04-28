@@ -13,7 +13,7 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 - Browse menu, add items to cart (with sizes, flavors, add-ons, notes).
 - Fill pickup details (name, phone, email, time).
 - Place a **pay-in-person** order.
-- Receive an order confirmation page; restaurant gets a Resend email.
+- Receive an order confirmation page (with a "Your order should be ready in 10–15 minutes." notice sourced from `PICKUP_READY_NOTICE` in `lib/config.ts`); the restaurant gets a Resend email.
 
 > Payment is **always collected in person** at the restaurant at pickup. There is no online payment step.
 
@@ -26,9 +26,9 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 - Staff tablet view of all incoming online orders.
 - Real-time-ish updates via polling (default 4s).
 - Pop-up + chime for new orders until acknowledged.
-- Kanban columns: **New → Acknowledged → Preparing → Ready → Completed**, plus **Cancelled**.
-- Each order card shows customer, pickup time, full item list, totals, payment status, POS entry status, and elapsed time.
-- Staff can acknowledge, progress, complete, or cancel orders, and toggle "entered in POS" after manually punching the order into the existing POS.
+- Kanban columns: **New → Acknowledged → Ready → Completed**, plus **Cancelled**.
+- Each order card shows customer, pickup time, full item list, totals, payment status, and elapsed time.
+- Staff can acknowledge, mark ready, complete, or cancel orders. They still enter the order into the existing POS by hand — there is no in-app POS toggle.
 
 ---
 
@@ -68,10 +68,10 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 ## Ordering & data flow
 
 1. Customer places order on `/order` → client POSTs a list of **selection references** (`menuItemId`, `quantity`, `selectedSizeId`, `selectedAddonIds`, `selectedFlavorId`, `notes`) to `POST /api/order`. **Prices and names are not sent from the client** — they are recomputed on the server.
-2. `POST /api/order` validates with Zod, calls `priceCart()` which looks up each item in `data/menu.ts` and computes `unitPrice = basePrice + sizeDelta + addons + flavor`. Totals (subtotal · tax · total) come from that trusted calculation. It then generates an `orderCode` in the form **`GC-{base36-from-timestamp}-{4-hex}`** (unique, sortable, hard to guess), a random `viewToken` (32 hex chars), and saves to MongoDB with `paymentMethod: "pay_in_person"`, `paymentStatus: "unpaid"`, `orderStatus: "new"`, `posEntryStatus: "not_entered"`, `source: "website"`.
+2. `POST /api/order` validates with Zod, calls `priceCart()` which looks up each item in `data/menu.ts` and computes `unitPrice = basePrice + sizeDelta + addons + flavor`. Totals (subtotal · tax · total) come from that trusted calculation. It then generates an `orderCode` in the form **`GC-{base36-from-timestamp}-{4-hex}`** (unique, sortable, hard to guess), a random `viewToken` (32 hex chars), and saves to MongoDB with `paymentMethod: "pay_in_person"`, `paymentStatus: "unpaid"`, `orderStatus: "new"`, `source: "website"`.
 3. Restaurant receives a Resend email with the full order (no Stripe references).
-4. Customer is redirected to `/order/confirmation?orderId=…&token=…`. The confirmation page only renders the order if the `token` matches the stored `viewToken` (constant-time compare), preventing enumeration of other customers' orders.
-5. Staff tablet on `/dashboard` polls `/api/dashboard/orders` every 4s and shows the new order with a chime + toast. Staff manually enters it in the POS and presses **Mark entered in POS**, then moves the order through the workflow.
+4. Customer is redirected to `/order/confirmation?orderId=…&token=…`. The confirmation page only renders the order if the `token` matches the stored `viewToken` (constant-time compare), preventing enumeration of other customers' orders. When the token matches, the customer also sees the **`PICKUP_READY_NOTICE`** ("Your order should be ready in 10–15 minutes.") so they know roughly when to come pick up.
+5. Staff tablet on `/dashboard` polls `/api/dashboard/orders` every 4s and shows the new order with a chime + toast. Staff acknowledge it, manually enter it in the existing POS, then walk it through **Acknowledged → Ready → Completed** (or **Cancelled**).
 
 ---
 
@@ -100,7 +100,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 
 The live `/dashboard` is designed to stay fast and cheap indefinitely:
 
-- **Default view** = every active order (regardless of age) **plus** every completed/cancelled order from the last `DASHBOARD_HISTORY_WINDOW_HOURS` hours (default **48**, i.e. today + yesterday). A stale "preparing" order from 3 weeks ago still appears; a completed order from 3 weeks ago does not.
+- **Default view** = every active order (regardless of age) **plus** every completed/cancelled order from the last `DASHBOARD_HISTORY_WINDOW_HOURS` hours (default **48**, i.e. today + yesterday). A stale "acknowledged" order from 3 weeks ago still appears; a completed order from 3 weeks ago does not.
 - **Older orders** are reachable via the **search box** (name, phone, or order #). Search hits the database directly through `/api/dashboard/orders/search`, returns up to 50 matches, bypasses the time window, pauses polling, and swaps the kanban for a flat results view.
 - **Hard server cap** on every list fetch is 500 orders. Even on an unusually busy day with the window bumped to 7 days, the board won't try to render unbounded data.
 - **Rate limits** (in addition to the customer-side ones):
@@ -131,7 +131,7 @@ You stay inside free-tier limits easily for a single restaurant. For **multiple 
 ### Things to be aware of
 
 - **Search is case-insensitive regex** on MongoDB; it scans rather than uses a B-tree index when you use middle-of-string terms. Fine up to ~50k orders. Partial phone matches also try a digits-only comparison so `"4161234567"` matches stored `"(416) 123-4567"`.
-- **Active orders never age out of the board**, even if they're older than the window. If you leave an order in "preparing" indefinitely, it stays visible — which is usually what you want.
+- **Active orders never age out of the board**, even if they're older than the window. If you leave an order in "acknowledged" indefinitely, it stays visible — which is usually what you want.
 - **The client doesn't delete orders**. Staff can only move them to `cancelled` or `completed`. If you ever want to purge very old orders, do it from the Atlas console or add a scheduled job.
 - **Polling pauses during search.** When the search box has 2+ characters, the board stops auto-refreshing; clear the search to resume live updates.
 
@@ -174,7 +174,7 @@ app/
       login/route.ts         POST password → signed cookie (rate-limited)
       logout/route.ts
       orders/route.ts        GET recent-and-active orders (windowHours, limit, session-authed)
-      orders/[orderId]/route.ts  GET + PATCH status/POS entry (rate-limited)
+      orders/[orderId]/route.ts  GET + PATCH status (rate-limited)
       orders/search/route.ts GET older orders by name/phone/# (rate-limited)
 
 components/

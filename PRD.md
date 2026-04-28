@@ -2,7 +2,7 @@
 
 ## 1. Product Summary
 
-Ginger Cuisine is a pickup ordering website and staff dashboard for a family-run Vietnamese restaurant. Customers browse the menu, customize items, submit pickup details, and place orders online. Payment is collected in person at pickup. Restaurant staff use a separate password-protected tablet dashboard to view incoming online orders, acknowledge them, manually enter them into the existing POS, and track preparation status.
+Ginger Cuisine is a pickup ordering website and staff dashboard for a family-run Vietnamese restaurant. Customers browse the menu, customize items, submit pickup details, and place orders online. Payment is collected in person at pickup. Restaurant staff use a separate password-protected tablet dashboard to view incoming online orders, acknowledge them, walk them through ready and completed, and manually enter them into the existing POS.
 
 The product intentionally avoids online payment and direct POS integration. Its job is to make online ordering clear for customers and operationally useful for restaurant staff while keeping the implementation simple, affordable, and deployable on common free/low-cost hosting services.
 
@@ -11,7 +11,7 @@ The product intentionally avoids online payment and direct POS integration. Its 
 - Let customers place pickup orders without creating an account.
 - Keep checkout simple: online order submission, in-person payment.
 - Give restaurant staff a reliable real-time-ish dashboard for incoming orders.
-- Support manual POS entry by showing all order details clearly.
+- Show every order detail clearly enough that staff can manually enter the order into their existing POS without an in-app toggle.
 - Prevent customers from accessing the staff dashboard.
 - Recompute all prices server-side so users cannot manipulate totals.
 - Keep the app practical for production deployment on Vercel with MongoDB, Resend, and Upstash.
@@ -34,7 +34,7 @@ Customers are people ordering pickup from Ginger Cuisine. They may be on mobile 
 
 ### Restaurant Staff
 
-Staff use the dashboard on a tablet or computer inside the restaurant. They need to see new orders quickly, hear/see notifications, manually enter orders into the POS, update order status, and search older orders when needed.
+Staff use the dashboard on a tablet or computer inside the restaurant. They need to see new orders quickly, hear/see notifications, walk an order through acknowledged/ready/completed, manually enter the order in their existing POS, and search older orders when needed.
 
 ### Owner / Maintainer
 
@@ -71,11 +71,10 @@ Dashboard route:
 Dashboard capabilities:
 
 - Login with staff password.
-- See incoming orders in workflow columns.
+- See incoming orders in workflow columns: **New → Acknowledged → Ready → Completed**, plus **Cancelled**.
 - Receive new-order visual/audio notification.
 - View complete order details.
-- Mark order as acknowledged, preparing, ready, completed, or cancelled.
-- Mark whether the order was manually entered into the POS.
+- Mark order as acknowledged, ready, completed, or cancelled.
 - Search older orders by name, phone, or order number.
 
 ## 6. Key Workflows
@@ -90,7 +89,7 @@ Dashboard capabilities:
 6. Server validates selections and recomputes prices from `data/menu.ts`.
 7. Server creates the order in MongoDB with `paymentMethod: "pay_in_person"` and `paymentStatus: "unpaid"`.
 8. Restaurant receives an email notification via Resend.
-9. Customer lands on a confirmation page that requires the generated view token.
+9. Customer lands on a confirmation page that requires the generated view token. When the token matches, the page also surfaces `PICKUP_READY_NOTICE` ("Your order should be ready in 10–15 minutes.") so the customer knows roughly when to head over.
 10. Customer pays at the restaurant during pickup.
 
 ### Staff Dashboard Workflow
@@ -100,10 +99,9 @@ Dashboard capabilities:
 3. Dashboard polls periodically for updates.
 4. New orders appear in the New column with notification.
 5. Staff opens order details and manually enters the order into the existing POS.
-6. Staff marks POS entry as entered.
-7. Staff progresses status through acknowledged, preparing, ready, and completed.
-8. Staff can cancel orders when needed.
-9. Staff can search older orders without loading all historical orders into the board.
+6. Staff progresses status through **acknowledged → ready → completed**.
+7. Staff can cancel orders when needed.
+8. Staff can search older orders without loading all historical orders into the board.
 
 ## 7. Functional Requirements
 
@@ -152,10 +150,14 @@ Dashboard capabilities:
 - Dashboard requires authentication.
 - Dashboard is separate from customer-facing routes.
 - Dashboard shows the staff workflow clearly on tablets.
-- Staff can update order status and POS-entry status.
+- Staff can update order status across `new`, `acknowledged`, `ready`, `completed`, and `cancelled`.
 - Dashboard must prevent duplicate new-order notifications.
 - Dashboard must keep the main view bounded by showing active orders plus recent history.
 - Older orders must be searchable through the database-backed search endpoint.
+
+### Customer Confirmation Requirements
+
+- Confirmation page must surface the customer-friendly `PICKUP_READY_NOTICE` ("Your order should be ready in 10–15 minutes.") sourced from `lib/config.ts`, but only when the order was successfully looked up with a valid view token.
 
 ## 8. Security Requirements
 
@@ -211,8 +213,7 @@ Order records include:
 - subtotal, tax, total
 - `paymentMethod: "pay_in_person"`
 - `paymentStatus: "unpaid"` or `"paid"`
-- `orderStatus`
-- `posEntryStatus`
+- `orderStatus` — one of `new`, `acknowledged`, `ready`, `completed`, `cancelled`
 - `source: "website"`
 - `viewToken`
 - timestamps
@@ -253,8 +254,9 @@ Production deployment requires:
 - Restaurant receives an order email.
 - Dashboard login works with configured password.
 - New orders appear in the dashboard polling view.
-- Staff can update workflow and POS-entry status.
+- Staff can move an order through `new → acknowledged → ready → completed` (or `cancelled`).
 - Older order search works without loading all historical orders into the board.
+- The confirmation page shows the `PICKUP_READY_NOTICE` to the customer when the order resolves with a valid view token.
 - Menu item options match current restaurant rules.
 - Production build succeeds.
 
