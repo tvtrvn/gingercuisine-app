@@ -228,6 +228,7 @@ Order records include:
 - Main dashboard list should stay bounded and avoid infinite historical scroll.
 - App should build on Vercel with Prisma client generation during build.
 - Menu changes should be easy to review because `data/menu.ts` is the source of truth.
+- The About page embeds a Vimeo player; if a strict Content-Security-Policy is added later, it must include `frame-src https://player.vimeo.com` and `img-src https://i.vimeocdn.com` (among normal `self` allowances) so the embed continues to work.
 
 ## 12. Deployment Requirements
 

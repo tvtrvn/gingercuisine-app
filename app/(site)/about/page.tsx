@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { VideoEmbed } from "@/components/about/VideoEmbed";
 
 // Edit this array to add, remove, or reorder gallery photos.
 const galleryPhotos = [
@@ -36,6 +37,13 @@ export default function AboutPage() {
         <p className="text-sm text-neutral-700">
         Every morning, we wake up early to slow cook the broth for our pho, and offer freshly made baguettes from scratch.
         </p>
+
+        <VideoEmbed
+          vimeoId="1187467908"
+          title="Slow-cooking the pho broth at Ginger Cuisine"
+          posterSrc="/images/environment-photos/pho-making-poster.jpg"
+          caption="A weekday morning in our kitchen — slow-cooking the pho broth."
+        />
       </section>
 
       <section className="space-y-3">
