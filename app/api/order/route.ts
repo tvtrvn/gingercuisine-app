@@ -1,4 +1,5 @@
 import { sendOrderEmail } from "@/lib/email";
+import { generateOrderCode } from "@/lib/orderCode";
 import { createOrder } from "@/lib/orderStore";
 import { PricingError, priceCart } from "@/lib/pricing";
 import {
@@ -8,21 +9,10 @@ import {
 } from "@/lib/rateLimit";
 import { isSameOrigin } from "@/lib/requireSameOrigin";
 import { orderRequestSchema } from "@/lib/validation";
-import { randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-
-/**
- * Build a public order code: timestamp prefix (sortable, readable) plus a
- * short random suffix to make codes effectively unguessable AND eliminate
- * the rare collision when two orders land in the same millisecond.
- */
-function generateOrderCode(): string {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rand = randomBytes(2).toString("hex").toUpperCase(); // 4 hex chars
-  return `GC-${ts}-${rand}`;
-}
 
 export async function POST(req: NextRequest) {
   if (!isSameOrigin(req)) {
@@ -67,16 +57,40 @@ export async function POST(req: NextRequest) {
       throw err;
     }
 
-    const orderCode = generateOrderCode();
+    let order: Awaited<ReturnType<typeof createOrder>> | undefined;
+    let lastDup: unknown;
 
-    const order = await createOrder({
-      orderCode,
-      items: priced.items,
-      pickupDetails,
-      subtotal: priced.subtotal,
-      tax: priced.tax,
-      total: priced.total,
-    });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const orderCode = generateOrderCode();
+      try {
+        order = await createOrder({
+          orderCode,
+          items: priced.items,
+          pickupDetails,
+          subtotal: priced.subtotal,
+          tax: priced.tax,
+          total: priced.total,
+        });
+        break;
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
+          lastDup = err;
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!order) {
+      console.error("[/api/order] orderCode collision after retries:", lastDup);
+      return NextResponse.json(
+        { error: "Could not assign an order number. Please try again." },
+        { status: 503 },
+      );
+    }
 
     sendOrderEmail(order).catch((err) =>
       console.error("[/api/order] email failed:", err),

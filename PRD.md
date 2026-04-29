@@ -87,9 +87,9 @@ Dashboard capabilities:
 4. Customer enters name, phone, optional email, and pickup time preference.
 5. App sends only selection references to the server, not trusted prices.
 6. Server validates selections and recomputes prices from `data/menu.ts`.
-7. Server creates the order in MongoDB with `paymentMethod: "pay_in_person"` and `paymentStatus: "unpaid"`.
+7. Server creates the order in MongoDB with `paymentMethod: "pay_in_person"` and `paymentStatus: "unpaid"`, a **`orderCode`** (6-character Crockford base32 id), and a **`viewToken`**.
 8. Restaurant receives an email notification via Resend.
-9. Customer lands on a confirmation page that requires the generated view token. When the token matches, the page also surfaces `PICKUP_READY_NOTICE` ("Your order should be ready in 10–15 minutes.") so the customer knows roughly when to head over.
+9. Customer lands on a confirmation URL that gates full details with **`viewToken`**; when valid, **`PICKUP_READY_NOTICE`** and a **live status timeline** are shown (`OrderStatusTracker` polls **`/api/order/status`**). Optionally `{ orderId, token }` is remembered in **`localStorage` (`gc_recent_orders`)** so `/order` can link back to tracking.
 10. Customer pays at the restaurant during pickup.
 
 ### Staff Dashboard Workflow
@@ -136,6 +136,8 @@ Dashboard capabilities:
 - Server-side pricing must reject invalid item ids, size ids, flavor ids, and add-on ids.
 - Order totals must include subtotal, tax, and total.
 - Orders must store customer pickup details.
+- **Phone numbers** are parsed and validated with **`libphonenumber-js`** using `NEXT_PUBLIC_PHONE_DEFAULT_REGION` (default `CA`) and stored in **E.164** (e.g. `+14165551212`).
+- **`orderCode`** assigned at creation is **6 characters Crockford Base32** (no `GC-` prefix — e.g. `K7XD9A`); lookups normalize case so older longer codes remain valid until retired.
 - Orders must store status fields for dashboard workflow.
 
 ### Email Requirements
@@ -159,13 +161,19 @@ Dashboard capabilities:
 
 - Confirmation page must surface the customer-friendly `PICKUP_READY_NOTICE` ("Your order should be ready in 10–15 minutes.") sourced from `lib/config.ts`, but only when the order was successfully looked up with a valid view token.
 
+### Customer tracking (no SMS / email)
+
+- **No accounts**, **no SMS**, and **no email** notifications to customers for status changes.
+- The confirmation URL `/order/confirmation?orderId=&token=` is the **canonical tracking URL**; **`OrderStatusTracker`** polls **`GET /api/order/status`** on a timer (~10s) while status is active and pauses when the browser tab is hidden.
+- **`/order`** may show **“recent orders on this device”** from **`localStorage` (`gc_recent_orders`)** — capped entries, short retention — so returning customers can reopen their link without logging in.
+
 ## 8. Security Requirements
 
 - Dashboard access requires `DASHBOARD_PASSWORD`.
 - Dashboard sessions use signed HttpOnly cookies.
 - Session signatures and password comparisons use constant-time comparison.
 - State-changing endpoints require same-origin checks through `Origin` or `Referer`.
-- Rate limiting is handled with Upstash Redis in production.
+- Rate limiting is handled with Upstash Redis in production (including customer **order status** reads).
 - Order confirmation requires both `orderId` and a random `viewToken`.
 - Dashboard and dashboard API routes must not be indexed by search engines.
 - Security headers should reduce clickjacking, MIME sniffing, referer leakage, and unnecessary browser permissions.
@@ -183,7 +191,7 @@ Dashboard capabilities:
 
 ### Backend
 
-- Next.js API routes handle orders, contact form submissions, dashboard login/logout, dashboard order updates, and dashboard search.
+- Next.js API routes handle orders (including **`GET /api/order/status`** for token-gated, minimal customer tracking), contact form submissions, dashboard login/logout, dashboard order updates, and dashboard search.
 - `lib/pricing.ts` is the trusted pricing layer.
 - `lib/validation.ts` defines request validation and size limits.
 - `lib/orderStore.ts` is the order persistence layer.
@@ -207,7 +215,7 @@ Dashboard capabilities:
 
 Order records include:
 
-- `orderCode`
+- **`orderCode`** — public-facing order id (**6 Crockford-base32 chars**; legacy longer codes remain readable)
 - item list with selected sizes, flavors, add-ons, quantities, and notes
 - pickup name, phone, optional email, pickup time preference
 - subtotal, tax, total

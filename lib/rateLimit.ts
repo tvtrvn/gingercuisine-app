@@ -138,6 +138,16 @@ export const dashboardSearchRateLimit = makeLimiter((redis) =>
   }),
 );
 
+/** Customer order-status polling — token-gated lightweight GET. */
+export const orderStatusRateLimit = makeLimiter((redis) =>
+  new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(60, "1 m"),
+    analytics: true,
+    prefix: "rl:order-status",
+  }),
+);
+
 /**
  * Best-effort client IP for rate-limit keys. Falls back to "unknown" which
  * effectively rate-limits all un-identifiable requests as a single bucket

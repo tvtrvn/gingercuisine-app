@@ -5,19 +5,18 @@ import {
   PRICES_NOTICE,
 } from "@/lib/config";
 import { getOrderById } from "@/lib/orderStore";
+import { timingSafeEqualStr } from "@/lib/timingSafeString";
 import { formatCurrency } from "@/lib/utils";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { OrderStatusTracker } from "@/components/order/OrderStatusTracker";
 
 interface ConfirmationPageProps {
   searchParams: Promise<{ orderId?: string; token?: string }>;
 }
 
-function timingSafeEqualStr(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
+function formatPhoneDisplay(e164: string): string {
+  const parsed = parsePhoneNumberFromString(e164);
+  return parsed?.formatNational() ?? e164;
 }
 
 export default async function ConfirmationPage({
@@ -61,6 +60,20 @@ export default async function ConfirmationPage({
         <p className="text-xs text-neutral-500">{PRICES_NOTICE}</p>
       </header>
 
+      {order && token && (
+        <OrderStatusTracker
+          orderId={order.id}
+          token={token}
+          initialStatus={{
+            orderStatus: order.orderStatus,
+            acknowledgedAt: order.acknowledgedAt ?? null,
+            readyAt: order.readyAt ?? null,
+            completedAt: order.completedAt ?? null,
+            cancelledAt: order.cancelledAt ?? null,
+          }}
+        />
+      )}
+
       {order && (
         <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
           <div>
@@ -68,7 +81,8 @@ export default async function ConfirmationPage({
               Pickup details
             </h2>
             <p className="mt-1 text-sm text-neutral-700">
-              {order.pickupDetails.name} · {order.pickupDetails.phone}
+              {order.pickupDetails.name} ·{" "}
+              {formatPhoneDisplay(order.pickupDetails.phone)}
             </p>
             {order.pickupDetails.email && (
               <p className="text-xs text-neutral-600">

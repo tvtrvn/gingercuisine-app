@@ -11,11 +11,13 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 **Customer site** (`/`, `/menu`, `/order`, `/location`, `/about`, `/contact`):
 
 - Browse menu, add items to cart (with sizes, flavors, add-ons, notes).
-- Fill pickup details (name, phone, email, time).
+- Fill pickup details (**phone** validated/formatted via `libphonenumber-js` with default region `NEXT_PUBLIC_PHONE_DEFAULT_REGION`, default `CA`; stored as **E.164** in MongoDB).
 - Place a **pay-in-person** order.
-- Receive an order confirmation page (with a "Your order should be ready in 10–15 minutes." notice sourced from `PICKUP_READY_NOTICE` in `lib/config.ts`); the restaurant gets a Resend email.
+- Receive an order confirmation URL (`/order/confirmation?orderId=&token=`). The **confirmation page doubles as live order tracking**: a timeline shows kitchen progress (placed → acknowledged → ready → picked up) and **`OrderStatusTracker` polls `/api/order/status` every ~10s** while the tab is visible (free, serverless-safe, no SMS/email to customers).
 
 > Payment is **always collected in person** at the restaurant at pickup. There is no online payment step.
+
+**`/order`** also shows **Your recent orders on this device**: after checkout, `{ orderId, token }` pairs are remembered in **`localStorage` (`gc_recent_orders`)** for up to 24 hours/capped at five entries — no account login. Same links work as tracking URLs.
 
 **`/about`** includes an embedded **Vimeo** video (`components/about/VideoEmbed.tsx`): a poster + facade so the Vimeo player only loads after the block scrolls into view (**muted autoplay**) or after the visitor taps play (earlier gesture). Customize the Vimeo ID and poster image in `app/(site)/about/page.tsx`.
 
@@ -51,6 +53,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | `NEXT_PUBLIC_SITE_URL`                     | Base URL for the site.                                           |
 | `RESTAURANT_NAME` / `RESTAURANT_ADDRESS` / `RESTAURANT_PHONE` / `RESTAURANT_HOURS` | Branding. |
 | `NEXT_PUBLIC_RESTAURANT_PHONE`             | Phone number shown publicly.                                     |
+| `NEXT_PUBLIC_PHONE_DEFAULT_REGION` (optional)| Default ISO country code for parsing typed phone numbers (e.g. `CA`). See `PHONE_DEFAULT_REGION` in `lib/config.ts`. |
 | `TAX_RATE`                                 | Tax multiplier (e.g. `0.13` for 13% HST).                        |
 | `RESEND_API_KEY` / `RESEND_DOMAIN` / `RESEND_FROM_EMAIL` | Resend email config.                                |
 | `RESTAURANT_ORDER_EMAIL`                   | Who receives new order notifications.                            |
@@ -68,10 +71,11 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 ## Ordering & data flow
 
 1. Customer places order on `/order` → client POSTs a list of **selection references** (`menuItemId`, `quantity`, `selectedSizeId`, `selectedAddonIds`, `selectedFlavorId`, `notes`) to `POST /api/order`. **Prices and names are not sent from the client** — they are recomputed on the server.
-2. `POST /api/order` validates with Zod, calls `priceCart()` which looks up each item in `data/menu.ts` and computes `unitPrice = basePrice + sizeDelta + addons + flavor`. Totals (subtotal · tax · total) come from that trusted calculation. It then generates an `orderCode` in the form **`GC-{base36-from-timestamp}-{4-hex}`** (unique, sortable, hard to guess), a random `viewToken` (32 hex chars), and saves to MongoDB with `paymentMethod: "pay_in_person"`, `paymentStatus: "unpaid"`, `orderStatus: "new"`, `source: "website"`.
+2. `POST /api/order` validates with Zod, calls `priceCart()`… It then assigns a **`orderCode`** of **six Crockford-base32 chars** (~32⁶ combos, easy to give over the phone — e.g. `K7XD9A`) with three collision retries on Mongo unique-key races, plus a **`viewToken` (128-bit hex)** that **actually protects confidentiality** against guessing strangers' orders).
 3. Restaurant receives a Resend email with the full order (no Stripe references).
-4. Customer is redirected to `/order/confirmation?orderId=…&token=…`. The confirmation page only renders the order if the `token` matches the stored `viewToken` (constant-time compare), preventing enumeration of other customers' orders. When the token matches, the customer also sees the **`PICKUP_READY_NOTICE`** ("Your order should be ready in 10–15 minutes.") so they know roughly when to come pick up.
-5. Staff tablet on `/dashboard` polls `/api/dashboard/orders` every 4s. A short chime **repeats while at least one order remains in `new`**, alongside a one-time toast when a brand-new order arrives; staff acknowledge it, manually enter it in the existing POS, then walk it through **Acknowledged → Ready → Completed** (or **Cancelled**).
+4. Customer is redirected to `/order/confirmation?orderId=…&token=…`. Detailed line items render only when **`token`** matches the stored **`viewToken`** (constant-time compare). The same page shows **`PICKUP_READY_NOTICE`**, a **live status timeline**, and a client **poll of `GET /api/order/status` every ~10s** (while the tab is visible) — no SMS/email/Push to customers.
+5. **`localStorage` key `gc_recent_orders`** (max 5 listings, 24h retention) remembers recent `{ orderId, token }` pairs on the **`/order`** page so customers can reopen their tracking link without an account.
+6. Staff tablet on `/dashboard` polls `/api/dashboard/orders` every 4s. A short chime **repeats while any order stays `new`**, with a one-time toast per brand-new arrival; staff acknowledge, punch the POS, advance **Acknowledged → Ready → Completed** (or cancel).
 
 ---
 
@@ -84,6 +88,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | Flood of junk customer orders  | Upstash rate limit: **10 orders / min / IP** on `/api/order`. |
 | Contact-form spam              | Upstash rate limit: **5 submissions / 10 min / IP** on `/api/contact`. |
 | Runaway dashboard API calls    | Upstash rate limit: **60 writes / min / session** on `/api/dashboard/orders/:id`. |
+| Spamming public order status   | Upstash rate limit: **60 reads / min / IP** on `/api/order/status` (`orderId` + `viewToken` query still required — wrong pair → 404). |
 | Client-forged prices           | Server recomputes every line from `data/menu.ts`; unknown items / sizes / add-ons / flavors are rejected with a 400. |
 | Oversized carts / inputs       | Zod caps: 50 cart lines, 25 qty/line, 20 add-ons/line, 80-char name, 30-char phone, 120-char email, 200-char password, 300-char notes. |
 | CSRF                           | Every state-changing endpoint requires `Origin` or `Referer` to match the request `Host`. |
@@ -168,6 +173,7 @@ app/
     login/page.tsx + LoginForm.tsx
   api/
     order/route.ts           POST new pay-in-person order (server-priced, rate-limited)
+    order/status/route.ts    GET minimal order status for tracking (token + rate limit)
     contact/route.ts         POST contact form (rate-limited)
     cron/heartbeat/route.ts  GET weekly Mongo ping (Vercel Cron + CRON_SECRET)
     dashboard/
@@ -180,7 +186,7 @@ app/
 components/
   cart/ (context, floating cart)
   layout/ (nav, footer, sticky button)
-  order/ (cart summary, pickup form)
+  order/ (cart summary, pickup form, confirmation tracking, recent orders)
   about/VideoEmbed.tsx           Vimeo embed facade (scroll-to-play muted / tap-to-play) for `/about`
   dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, useNewOrderAlarm, StatusBadge, ElapsedTime, DashboardHeader)
   ui/
@@ -191,7 +197,10 @@ lib/
   validation.ts              Zod schemas (with max caps)
   pricing.ts                 trusted server-side cart pricing
   prisma.ts                  Prisma client
-  orderStore.ts              createOrder (+ viewToken) / getOrderById / listOrders / updateOrder
+  orderStore.ts              createOrder / getOrderById / listOrders / updateOrder
+  orderCode.ts               Crockford 6-char codes + normalisation
+  recentOrders.ts            localStorage helpers (`gc_recent_orders`)
+  timingSafeString.ts        timing-safe string compare (shared with API routes)
   email.ts                   Resend helpers (order + contact)
   dashboardAuth.ts           HMAC session cookie helpers + constant-time password compare
   requireDashboardSession.ts auth guards for server components + API routes

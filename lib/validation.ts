@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { PHONE_DEFAULT_REGION } from "./config";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+
 const PICKUP_START_TIME = "11:30";
 const PICKUP_END_TIME = "22:45";
 
@@ -24,7 +27,23 @@ export const cartSelectionSchema = z.object({
 
 export const pickupDetailsSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(80),
-  phone: z.string().trim().min(5, "Phone is required").max(30),
+  phone: z
+    .string()
+    .trim()
+    .max(30)
+    .superRefine((val, ctx) => {
+      const parsed = parsePhoneNumberFromString(val, PHONE_DEFAULT_REGION);
+      if (!parsed?.isValid()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please enter a valid phone number.",
+        });
+      }
+    })
+    .transform((val) => {
+      const parsed = parsePhoneNumberFromString(val, PHONE_DEFAULT_REGION);
+      return parsed!.number;
+    }),
   email: z
     .string()
     .trim()

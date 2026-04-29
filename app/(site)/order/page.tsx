@@ -3,6 +3,7 @@
 import { useCart } from "@/components/cart/cart-context";
 import { CartSummary } from "@/components/order/CartSummary";
 import { PickupForm } from "@/components/order/PickupForm";
+import { RecentOrdersList } from "@/components/order/RecentOrdersList";
 import { menuItems } from "@/data/menu";
 import { AddonOption, MenuItem, SizeOption } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -88,6 +89,8 @@ export default function OrderPage() {
           </Link>
         </p>
       </header>
+
+      <RecentOrdersList />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(0,1.4fr)]">
         {/* Menu shortlist on the left for quick adding */}

@@ -1,12 +1,35 @@
 "use client";
 
 import { useCart } from "@/components/cart/cart-context";
-import { PAY_IN_PERSON_NOTICE, PRICES_NOTICE } from "@/lib/config";
+import {
+  PAY_IN_PERSON_NOTICE,
+  PHONE_DEFAULT_REGION,
+  PRICES_NOTICE,
+} from "@/lib/config";
+import { rememberOrder } from "@/lib/recentOrders";
 import { orderRequestSchema } from "@/lib/validation";
-import { FormEvent, useState } from "react";
+import type { CountryCode } from "libphonenumber-js";
+import { AsYouType } from "libphonenumber-js/min";
+import { FormEvent, useMemo, useState } from "react";
 
 const PICKUP_START_TIME = "11:30";
 const PICKUP_END_TIME = "22:45";
+/** ITU-T E.164 max subscriber length; keeps paste from exploding state. */
+const MAX_PHONE_DIGITS = 15;
+
+function digitsFromTelInput(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, MAX_PHONE_DIGITS);
+}
+
+/** Format digits with AsYouType so backspace deletes a digit (not fight parens). */
+function formatDigitsForDisplay(digits: string, region: CountryCode): string {
+  const ayt = new AsYouType(region);
+  let formatted = "";
+  for (const ch of digits) {
+    formatted = ayt.input(ch);
+  }
+  return formatted;
+}
 
 interface PickupFormProps {
   onOrderCreated?: (orderId: string) => void;
@@ -15,7 +38,12 @@ interface PickupFormProps {
 export function PickupForm({ onOrderCreated }: PickupFormProps) {
   const { items, clearCart } = useCart();
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  /** National digits only; display is derived (see phoneDisplayValue). */
+  const [phoneDigits, setPhoneDigits] = useState("");
+  const phoneDisplayValue = useMemo(
+    () => formatDigitsForDisplay(phoneDigits, PHONE_DEFAULT_REGION),
+    [phoneDigits],
+  );
   const [email, setEmail] = useState("");
   const [pickupTimeOption, setPickupTimeOption] =
     useState<"asap" | "later">("asap");
@@ -42,7 +70,7 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
       items: selections,
       pickupDetails: {
         name,
-        phone,
+        phone: phoneDigits,
         email,
         pickupTimeOption,
         pickupTime: pickupTimeOption === "later" ? pickupTime : undefined,
@@ -73,6 +101,13 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
       }
       const data = await res.json();
       clearCart();
+      if (data.viewToken) {
+        rememberOrder({
+          orderId: data.orderId,
+          token: data.viewToken,
+          placedAt: new Date().toISOString(),
+        });
+      }
       if (onOrderCreated && data.orderId) {
         onOrderCreated(data.orderId);
       }
@@ -132,8 +167,25 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
             type="tel"
             required
             autoComplete="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            inputMode="tel"
+            value={phoneDisplayValue}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const nextDigits = digitsFromTelInput(raw);
+              // If the raw input shrank but only formatting characters
+              // were removed (e.g. backspacing the trailing ")" of
+              // "(416) "), drop a real digit so the field actually
+              // shortens instead of snapping back via the controlled
+              // value.
+              if (
+                nextDigits === phoneDigits &&
+                raw.length < phoneDisplayValue.length
+              ) {
+                setPhoneDigits(phoneDigits.slice(0, -1));
+                return;
+              }
+              setPhoneDigits(nextDigits);
+            }}
             className="w-full rounded-full border border-neutral-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
           />
         </div>

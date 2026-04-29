@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "./prisma";
+import { normalizeOrderCode } from "./orderCode";
 import {
   ACTIVE_ORDER_STATUSES,
   CartItem,
@@ -109,8 +110,10 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
 }
 
 export async function getOrderById(id: string): Promise<Order | undefined> {
+  const code = normalizeOrderCode(id);
+  if (!code) return undefined;
   const record = await prisma.order.findUnique({
-    where: { orderCode: id },
+    where: { orderCode: code },
   });
   if (!record) return undefined;
   return dbToOrder(record as unknown as OrderRecord);
@@ -222,6 +225,9 @@ export async function updateOrder(
   orderCode: string,
   fields: UpdateOrderFields,
 ): Promise<Order | undefined> {
+  const code = normalizeOrderCode(orderCode);
+  if (!code) return undefined;
+
   const data: Record<string, unknown> = { ...fields };
 
   const now = new Date();
@@ -232,7 +238,7 @@ export async function updateOrder(
 
   try {
     const record = await prisma.order.update({
-      where: { orderCode },
+      where: { orderCode: code },
       data,
     });
     return dbToOrder(record as unknown as OrderRecord);

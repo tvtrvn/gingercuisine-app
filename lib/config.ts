@@ -1,5 +1,7 @@
 // Basic configuration values that are easy to change later.
 
+import type { CountryCode } from "libphonenumber-js";
+
 export const RESTAURANT_NAME = process.env.RESTAURANT_NAME || "(RESTAURANT_NAME)";
 export const RESTAURANT_ADDRESS = process.env.RESTAURANT_ADDRESS || "(ADDRESS)";
 export const RESTAURANT_PHONE =
@@ -44,3 +46,7 @@ export const CONTACT_EMAIL =
   process.env.NEXT_PUBLIC_RESTAURANT_CONTACT_EMAIL ||
   process.env.RESTAURANT_CONTACT_EMAIL ||
   "contact@example.com";
+
+/** Passed to libphonenumber-js for parsing/formatting (+ validation). Examples: `"CA"` (default), `"US"`. */
+export const PHONE_DEFAULT_REGION = (process.env
+  .NEXT_PUBLIC_PHONE_DEFAULT_REGION ?? "CA") as CountryCode;

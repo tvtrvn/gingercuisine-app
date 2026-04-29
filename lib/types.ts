@@ -94,7 +94,7 @@ export interface OrderTotals {
 }
 
 export interface Order {
-  id: string;                       // orderCode (e.g. GC-ABC123)
+  id: string;                       // orderCode (6-char Crockford base32, e.g. K7XD9A)
   createdAt: string;                // ISO string
   updatedAt?: string;
   items: CartItem[];
