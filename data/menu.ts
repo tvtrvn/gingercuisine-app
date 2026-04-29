@@ -159,7 +159,8 @@ export const MEAT_PROTEIN_ADDONS = [
 ];
 
 /**
- * How to append non-meat extras: `rice` uses "Switch to Fried Rice" at $1;
+ * How to append non-meat extras: `rice` set is egg + vegetable plus dish-specific meats;
+ * base grain switching is modeled via [`RICE_PLATE_BASE_OPTIONS`] (not addon `switch-fried-rice`).
  * `specialty` includes "Fried rice" $5; `vermicelli` omits any rice swap.
  */
 export type DishNonMeatSet =
@@ -179,11 +180,6 @@ export const NON_MEAT_DISH_ADDONS: AddonOption[] = [
 const NON_MEAT_RICE_ADDONS: AddonOption[] = [
   { id: "addon-egg", name: "Egg", price: 2.0 },
   { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
-  {
-    id: "switch-fried-rice",
-    name: "Switch to Fried Rice",
-    price: 1.0,
-  },
 ];
 
 const NON_MEAT_VERMICELLI_ADDONS: AddonOption[] = [
@@ -199,6 +195,23 @@ const NON_MEAT_VERMICELLI_ADDONS: AddonOption[] = [
 const NON_MEAT_EGG_VEG_ONLY: AddonOption[] = [
   { id: "addon-egg", name: "Egg", price: 2.0 },
   { id: "addon-vegetable", name: "Vegetable", price: 5.0 },
+];
+
+/**
+ * Mutually-exclusive base choice for rice plates and select specialty plates.
+ * Fried Rice is the only paid upgrade ($1).
+ *
+ * NOTE: Addon id `"fried-rice"` exists separately in NON_MEAT_DISH_ADDONS (“Fried rice” $5);
+ * sizes and addons live in separate namespaces; these ids use a `base-` prefix for clarity.
+ */
+export const RICE_PLATE_BASE_OPTIONS: SizeOption[] = [
+  { id: "base-white-rice", label: "White Rice", priceDelta: 0 },
+  { id: "base-brown-rice", label: "Brown Rice", priceDelta: 0 },
+  { id: "base-mixed-vegetables", label: "Mixed Vegetables", priceDelta: 0 },
+  { id: "base-pad-thai", label: "Pad Thai", priceDelta: 0 },
+  { id: "base-udon", label: "Udon", priceDelta: 0 },
+  { id: "base-vermicelli", label: "Vermicelli", priceDelta: 0 },
+  { id: "base-fried-rice", label: "Fried Rice", priceDelta: 1.0 },
 ];
 
 export const BUTTER_CHICKEN_BASE_OPTIONS: SizeOption[] = [
@@ -220,8 +233,9 @@ function nonMeatAddonsFor(set: DishNonMeatSet): AddonOption[] {
 
 /**
  * Build the add-on list for a dish. Pass the add-on IDs of the proteins
- * actually in the dish. Non-meat set: `rice` (Switch to Fried Rice $1), `specialty`
- * (Fried rice $5), `vermicelli` (Vermicelli noodle $4, no rice swap), `egg-veg-only`
+ * actually in the dish. Non-meat set: `rice` adds egg + vegetable (grain swap is handled in
+ * [`RICE_PLATE_BASE_OPTIONS`]), `specialty`
+ * (Fried rice $5), `vermicelli` (Vermicelli noodle $4), `egg-veg-only`
  * (egg + vegetable only — e.g. shrimp fried rice).
  */
 export function dishAddonsFor(
@@ -649,6 +663,8 @@ export const menuItems: MenuItem[] = ([
       "Marinated pork chop over jasmine rice, bokchoy, and fish sauce.",
     price: 17.5,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(["extra-grilled-porkchop"], "rice"),
   },
   {
@@ -660,6 +676,8 @@ export const menuItems: MenuItem[] = ([
       "Grilled chicken with jasmine rice and bokchoy.",
     price: 16.25,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(["extra-grilled-chicken"], "rice"),
   },
   {
@@ -671,6 +689,8 @@ export const menuItems: MenuItem[] = ([
       "Spicy grilled chicken with jasmine rice and bokchoy.",
     price: 16.25,
     tags: ["spicy"],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(["extra-grilled-chicken"], "rice"),
   },
   {
@@ -682,6 +702,8 @@ export const menuItems: MenuItem[] = ([
       "Grilled lemongrass beef with jasmine rice and bokchoy.",
     price: 16.25,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(["extra-grilled-beef"], "rice"),
   },
   {
@@ -693,6 +715,8 @@ export const menuItems: MenuItem[] = ([
       "Curry chicken with jasmine rice and bokchoy.",
     price: 16.25,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(["extra-curry-chicken"], "rice"),
   },
   {
@@ -704,6 +728,8 @@ export const menuItems: MenuItem[] = ([
       "Grilled beef ribs with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor([], "rice"),
   },
   {
@@ -715,6 +741,8 @@ export const menuItems: MenuItem[] = ([
       "Grilled shrimp with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(["extra-shrimp"], "rice"),
   },
   {
@@ -726,6 +754,8 @@ export const menuItems: MenuItem[] = ([
       "Grilled chicken & pork chop with jasmine rice, bokchoy, and fish sauce.",
     price: 17.95,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(
       [
         "extra-grilled-chicken",
@@ -743,6 +773,8 @@ export const menuItems: MenuItem[] = ([
       "Curry lamb with jasmine rice and bokchoy.",
     price: 19.95,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(["extra-curry-lamb"], "rice"),
   },
   {
@@ -754,6 +786,8 @@ export const menuItems: MenuItem[] = ([
       "Curry chicken & beef with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(
       [
         "extra-curry-chicken",
@@ -772,6 +806,8 @@ export const menuItems: MenuItem[] = ([
     price: 18.95,
     tags: [],
     isFeatured: true,
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-white-rice",
     availableAddons: dishAddonsFor(
       [
         "extra-grilled-chicken",
@@ -792,6 +828,8 @@ export const menuItems: MenuItem[] = ([
     price: 18.95,
     tags: [],
     isFeatured: true,
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-pad-thai",
     availableAddons: dishAddonsFor(
       [
         "extra-grilled-chicken",
@@ -809,6 +847,8 @@ export const menuItems: MenuItem[] = ([
       "Grilled chicken & beef teriyaki udon with cabbage.",
     price: 18.95,
     tags: [],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-udon",
     availableAddons: dishAddonsFor(
       [
         "extra-grilled-chicken",
@@ -846,6 +886,8 @@ export const menuItems: MenuItem[] = ([
       "Lemon grass tofu & mixed vegetable with pad thai.",
     price: 19.5,
     tags: ["vegetarian", "vegan"],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-pad-thai",
     availableAddons: dishAddonsFor(["extra-tofu-fried"], "rice"),
   },
   {
@@ -857,6 +899,8 @@ export const menuItems: MenuItem[] = ([
       "Curry tofu & mixed vegetable & eggplant with brown rice.",
     price: 16.5,
     tags: ["vegetarian", "vegan"],
+    availableSizes: RICE_PLATE_BASE_OPTIONS,
+    defaultSizeId: "base-brown-rice",
     availableAddons: dishAddonsFor(["extra-tofu-fried"], "rice"),
   },
   {

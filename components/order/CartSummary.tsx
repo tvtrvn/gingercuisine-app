@@ -9,6 +9,7 @@ export function CartSummary() {
     updateItemQuantity,
     updateItemNotes,
     removeItem,
+    duplicateItem,
   } = useCart();
 
   const tax = subtotal * TAX_RATE;
@@ -101,6 +102,16 @@ export function CartSummary() {
                 rows={2}
                 className="w-full rounded-2xl border border-neutral-300 px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
               />
+              <p className="mt-2 text-[11px] text-neutral-500">
+                <button
+                  type="button"
+                  onClick={() => duplicateItem(item.id)}
+                  className="text-emerald-800 underline underline-offset-2 hover:text-emerald-900"
+                >
+                  Add another with different notes
+                </button>
+                {" — "}one unit splits off as a separate line (same price overall).
+              </p>
             </div>
             </li>
           );

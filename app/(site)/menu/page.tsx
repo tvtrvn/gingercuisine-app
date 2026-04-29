@@ -38,6 +38,11 @@ export default function MenuPage() {
   const [selectedFlavorByItem, setSelectedFlavorByItem] = useState<
     Record<string, string>
   >({});
+  const [notesByItem, setNotesByItem] = useState<Record<string, string>>({});
+
+  function getNotes(item: MenuItem): string {
+    return notesByItem[item.id] ?? "";
+  }
 
   function getSelectedFlavor(item: MenuItem): AddonOption | undefined {
     if (!item.availableFlavors || item.availableFlavors.length === 0) {
@@ -82,6 +87,13 @@ export default function MenuPage() {
       selectedSize: getSelectedSize(item),
       selectedAddons: getSelectedAddons(item),
       selectedFlavor: getSelectedFlavor(item),
+      notes: getNotes(item),
+    });
+    setNotesByItem((prev) => {
+      if (!prev[item.id]) return prev;
+      const next = { ...prev };
+      delete next[item.id];
+      return next;
     });
   }
 
@@ -343,6 +355,28 @@ export default function MenuPage() {
                           </div>
                         </div>
                       )}
+                      <div className="mt-3">
+                        <label
+                          htmlFor={`notes-${item.id}`}
+                          className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-neutral-600"
+                        >
+                          Notes (optional)
+                        </label>
+                        <textarea
+                          id={`notes-${item.id}`}
+                          rows={2}
+                          placeholder="e.g. no cilantro, light sauce"
+                          value={notesByItem[item.id] ?? ""}
+                          onChange={(e) =>
+                            setNotesByItem((prev) => ({
+                              ...prev,
+                              [item.id]: e.target.value,
+                            }))
+                          }
+                          maxLength={300}
+                          className="w-full rounded-2xl border border-neutral-300 px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+                        />
+                      </div>
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap gap-1">
                           {item.tags?.map((t) => (

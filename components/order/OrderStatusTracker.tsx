@@ -130,7 +130,6 @@ export function OrderStatusTracker({
   const acknowledged =
     o === "acknowledged" || o === "ready" || o === "completed";
   const ready = o === "ready" || o === "completed";
-  const pickedUp = o === "completed";
 
   return (
     <section
@@ -143,11 +142,17 @@ export function OrderStatusTracker({
       >
         Order status
       </h2>
-      <p className="mt-1 text-xs text-emerald-800">
-        This page refreshes automatically about every ten seconds — keep it
-        open to see updates.
-      </p>
-      <ol className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
+      {o === "completed" ? (
+        <p className="mt-1 text-xs text-emerald-800">
+          Order ready for pickup — see you at the counter.
+        </p>
+      ) : (
+        <p className="mt-1 text-xs text-emerald-800">
+          This page refreshes automatically about every ten seconds — keep it
+          open to see updates.
+        </p>
+      )}
+      <ol className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <li className="flex gap-2">
           <StepIcon done={placed} />
           <div>
@@ -176,17 +181,6 @@ export function OrderStatusTracker({
               {status.readyAt
                 ? new Date(status.readyAt).toLocaleTimeString()
                 : "Not yet"}
-            </p>
-          </div>
-        </li>
-        <li className="flex gap-2">
-          <StepIcon done={pickedUp} />
-          <div>
-            <Label active={pickedUp}>Picked up</Label>
-            <p className="text-[11px] text-neutral-600">
-              {status.completedAt
-                ? new Date(status.completedAt).toLocaleTimeString()
-                : "At the counter"}
             </p>
           </div>
         </li>

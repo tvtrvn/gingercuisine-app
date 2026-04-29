@@ -19,11 +19,13 @@ interface CartContextValue {
       selectedAddons?: AddonOption[];
       selectedSize?: SizeOption;
       selectedFlavor?: AddonOption;
+      notes?: string;
     },
   ) => void;
   updateItemQuantity: (id: string, quantity: number) => void;
   updateItemNotes: (id: string, notes: string) => void;
   removeItem: (id: string) => void;
+  duplicateItem: (id: string) => void;
   clearCart: () => void;
   subtotal: number;
   itemCount: number;
@@ -44,8 +46,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         selectedAddons?: AddonOption[];
         selectedSize?: SizeOption;
         selectedFlavor?: AddonOption;
+        notes?: string;
       },
     ) => {
+      const notesValue = (options?.notes ?? "").trim();
       const availableSizes = menuItem.availableSizes ?? [];
       const fallbackSize =
         options?.selectedSize ||
@@ -66,6 +70,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         sizeId: fallbackSize?.id ?? null,
         addonIds: selectedAddons.map((addon) => addon.id).sort(),
         flavorId: selectedFlavor?.id ?? null,
+        notes: notesValue,
       });
 
       setItems((prev) => {
@@ -77,6 +82,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               .map((addon) => addon.id)
               .sort(),
             flavorId: item.selectedFlavor?.id ?? null,
+            notes: (item.notes ?? "").trim(),
           });
           return itemSignature === lineSignature;
         });
@@ -96,6 +102,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           price: unitPrice,
           unitPrice,
           quantity: 1,
+          notes: notesValue || undefined,
           selectedAddons,
           selectedSize: fallbackSize,
           selectedFlavor,
@@ -136,6 +143,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
+  /**
+   * Splits qty or duplicates a merged line so the copy can carry different notes
+   * (subtracts one from source, inserts a second line qty 1 with empty notes).
+   */
+  const duplicateItem = useCallback((id: string) => {
+    setItems((prev) => {
+      const src = prev.find((i) => i.id === id);
+      if (!src) return prev;
+      const newLine: CartItem = {
+        ...src,
+        id: `${src.menuItemId}-${Date.now()}`,
+        quantity: 1,
+        notes: undefined,
+      };
+      const updated = prev.map((i) =>
+        i.id === id
+          ? { ...i, quantity: Math.max(1, i.quantity - 1) }
+          : i,
+      );
+      return [...updated, newLine];
+    });
+  }, []);
+
   const clearCart = useCallback(() => {
     setItems([]);
   }, []);
@@ -159,6 +189,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     updateItemQuantity,
     updateItemNotes,
     removeItem,
+    duplicateItem,
     clearCart,
     subtotal,
     itemCount,

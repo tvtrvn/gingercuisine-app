@@ -10,10 +10,11 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 
 **Customer site** (`/`, `/menu`, `/order`, `/location`, `/about`, `/contact`):
 
-- Browse menu, add items to cart (with sizes, flavors, add-ons, notes).
+- Browse menu, add items to cart (with sizes, flavors, add-ons). **Optional per-line notes** are on each item card on **`/menu`** and in **Popular dishes on `/order`** **before** Add to cart (e.g. *no cilantro*); you can still tweak notes in checkout (**CartSummary**) or split lines with **Add another with different notes**. Lines with identical choices **merge qty** unless the line already has notes — **add the same dish with different modifiers** via a second cart line.
+- **Rice plates** and four specialty plates (Chicken & Shrimp Pad Thai; Chicken & Beef Teriyaki Udon; Lemongrass Tofu with Pad Thai; Curry Tofu with Brown Rice) include a mutually-exclusive **Base** as the **Size** row: White Rice, Brown Rice, Mixed Vegetables, Pad Thai, Udon, Vermicelli, or Fried Rice (**+$1**).
 - Fill pickup details (**phone** validated/formatted via `libphonenumber-js` with default region `NEXT_PUBLIC_PHONE_DEFAULT_REGION`, default `CA`; stored as **E.164** in MongoDB).
 - Place a **pay-in-person** order.
-- Receive an order confirmation URL (`/order/confirmation?orderId=&token=`). The **confirmation page doubles as live order tracking**: a timeline shows kitchen progress (placed → acknowledged → ready → picked up) and **`OrderStatusTracker` polls `/api/order/status` every ~10s** while the tab is visible (free, serverless-safe, no SMS/email to customers).
+- Receive an order confirmation URL (`/order/confirmation?orderId=&token=`). The **confirmation page doubles as live order tracking**: a **3-step timeline** (**Placed → Acknowledged → Ready**) and **`OrderStatusTracker` polls `/api/order/status` every ~10s** while the tab is visible (free, serverless-safe, no SMS/email to customers). Staff-internal “completed” stays off the tracker; customers see **“Order ready for pickup”** instead of a picked-up step.
 
 > Payment is **always collected in person** at the restaurant at pickup. There is no online payment step.
 

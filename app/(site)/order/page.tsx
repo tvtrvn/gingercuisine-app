@@ -22,6 +22,11 @@ export default function OrderPage() {
   const [selectedFlavorByItem, setSelectedFlavorByItem] = useState<
     Record<string, string>
   >({});
+  const [notesByItem, setNotesByItem] = useState<Record<string, string>>({});
+
+  function getNotes(item: MenuItem): string {
+    return notesByItem[item.id] ?? "";
+  }
 
   const featuredItems = useMemo(
     () => menuItems.filter((item) => item.isFeatured).slice(0, 8),
@@ -62,6 +67,13 @@ export default function OrderPage() {
       selectedSize: getSelectedSize(item),
       selectedAddons: getSelectedAddons(item),
       selectedFlavor: getSelectedFlavor(item),
+      notes: getNotes(item),
+    });
+    setNotesByItem((prev) => {
+      if (!prev[item.id]) return prev;
+      const next = { ...prev };
+      delete next[item.id];
+      return next;
     });
   }
 
@@ -246,6 +258,28 @@ export default function OrderPage() {
                         })}
                       </div>
                     )}
+                    <div>
+                      <label
+                        htmlFor={`notes-featured-${item.id}`}
+                        className="mb-1 block text-[11px] font-medium text-neutral-600"
+                      >
+                        Notes (optional)
+                      </label>
+                      <textarea
+                        id={`notes-featured-${item.id}`}
+                        rows={2}
+                        placeholder="e.g. no cilantro, light sauce"
+                        value={notesByItem[item.id] ?? ""}
+                        onChange={(e) =>
+                          setNotesByItem((prev) => ({
+                            ...prev,
+                            [item.id]: e.target.value,
+                          }))
+                        }
+                        maxLength={300}
+                        className="w-full rounded-2xl border border-neutral-300 px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+                      />
+                    </div>
                     <div className="flex justify-end pt-1 sm:pt-0">
                       <button
                         type="button"

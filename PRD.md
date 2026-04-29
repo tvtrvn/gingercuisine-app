@@ -122,7 +122,7 @@ Dashboard capabilities:
 - Classic Beef Pho supports rare beef, well-done beef, or both.
 - Soup add-ons include rice noodle but not grain.
 - Starter soups support an add rice noodle option.
-- Rice plates use dish-specific meat add-ons and may offer Switch to Fried Rice for $1.
+- Rice plates **and** the Specialty Plates (Chicken & Shrimp Pad Thai; Chicken & Beef Teriyaki Udon; Lemongrass Tofu & Mixed Vegetable with Pad Thai; Curry Tofu & Mixed Vegetable & Eggplant with Brown Rice) expose a mutually-exclusive **Base** choice (**White Rice, Brown Rice, Mixed Vegetables, Pad Thai, Udon, Vermicelli** at listed price **or Fried Rice +$1** via `priceDelta`). Extra meat tofu add-ons are separate pills. Legacy “Switch to Fried Rice ($1)” as an add-on is removed in favor of the Base picker.
 - Vermicelli bowls use dish-specific meat add-ons and replace grain with Vermicelli noodle.
 - Extra Meat & Protein side excludes rice noodle because rice noodle is its own side.
 - Butter Chicken Specialty Plate supports a base choice of rice or naan at the same price.
@@ -138,6 +138,8 @@ Dashboard capabilities:
 - Orders must store customer pickup details.
 - **Phone numbers** are parsed and validated with **`libphonenumber-js`** using `NEXT_PUBLIC_PHONE_DEFAULT_REGION` (default `CA`) and stored in **E.164** (e.g. `+14165551212`).
 - **`orderCode`** assigned at creation is **6 characters Crockford Base32** (no `GC-` prefix — e.g. `K7XD9A`); lookups normalize case so older longer codes remain valid until retired.
+- The cart merges identical **menu + size + add-ons + flavor** lines whose **notes are identical** (typically both blank until the customer separates lines or uses **duplicate line** controls); staff see each cart line independently on the dashboard.
+- Per-item **notes** may be entered **on each menu/order item card before Add to cart** (`/menu` and Popular dishes on `/order`) **and** edited later in checkout/cart (**CartSummary**) as a fallback.
 - Orders must store status fields for dashboard workflow.
 
 ### Email Requirements
@@ -164,7 +166,7 @@ Dashboard capabilities:
 ### Customer tracking (no SMS / email)
 
 - **No accounts**, **no SMS**, and **no email** notifications to customers for status changes.
-- The confirmation URL `/order/confirmation?orderId=&token=` is the **canonical tracking URL**; **`OrderStatusTracker`** polls **`GET /api/order/status`** on a timer (~10s) while status is active and pauses when the browser tab is hidden.
+- The confirmation URL `/order/confirmation?orderId=&token=` is the **canonical tracking URL**; **`OrderStatusTracker`** polls **`GET /api/order/status`** on a timer (~10s) while status is active and pauses when the browser tab is hidden. Customers see **three steps**: **Placed → Acknowledged → Ready** — there is **no fourth “picked up”** step on screen; terminal staff **Completed** maps to messaging that the food is ready for pickup (not POS-picked-up state).
 - **`/order`** may show **“recent orders on this device”** from **`localStorage` (`gc_recent_orders`)** — capped entries, short retention — so returning customers can reopen their link without logging in.
 
 ## 8. Security Requirements

@@ -49,3 +49,6 @@ RESUME.md
 
 # Large local video assets (do not commit)
 public/videos/
+
+# Cursor IDE
+.cursor/
