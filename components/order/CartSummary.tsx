@@ -93,7 +93,7 @@ export function CartSummary() {
                 htmlFor={`notes-${item.id}`}
                 className="mb-1 block text-xs text-neutral-600"
               >
-                Notes (e.g. “no cilantro”)
+                Notes (e.g. allergies, no cilantro)
               </label>
               <textarea
                 id={`notes-${item.id}`}

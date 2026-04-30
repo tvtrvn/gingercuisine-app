@@ -268,7 +268,7 @@ export default function OrderPage() {
                       <textarea
                         id={`notes-featured-${item.id}`}
                         rows={2}
-                        placeholder="e.g. no cilantro, light sauce"
+                        placeholder="e.g. allergies, no cilantro, light sauce"
                         value={notesByItem[item.id] ?? ""}
                         onChange={(e) =>
                           setNotesByItem((prev) => ({
