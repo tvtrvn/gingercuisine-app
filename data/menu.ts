@@ -24,6 +24,7 @@ export const MENU_IMAGES: Record<string, string> = {
   "banh-mi-grilled-pork":           `${IMG}/pork-banhmi.webp`,
   // Rice Plates
   "rice-grilled-chicken":           `${IMG}/grilled-chicken-rice.jpg`,
+  "rice-grilled-pork-chop":         `${IMG}/grilled-porkchop-rice.jpg`,
   "rice-curry-chicken":             `${IMG}/curry-chicken-rice.webp`,
   "rice-curry-lamb":                `${IMG}/curry-lamb-rice.webp`,
   "rice-curry-chicken-beef":        `${IMG}/curry-chicken-beef.jpg`,
@@ -58,11 +59,16 @@ export const MENU_IMAGES: Record<string, string> = {
   "starter-chicken-coconut-mushroom-soup": `${IMG}/chicken-coco-mushroom-better.webp`,
   "starter-wonton-soup":             `${IMG}/wonton-soup.jpg`,
   // Mango Salad
+  "plain-mango-salad":               `${IMG}/plain-mango-salad.jpg`,
   "chicken-shrimp-mango-salad":      `${IMG}/chicken-shrimp-mango.webp`,
   // Drinks
   "drink-iced-coffee":               `${IMG}/cafe-sua-da.jpg`,
   "drink-fruit-smoothie":            `${IMG}/smoothies.jpg`,
   "drink-bubble-tea":                `${IMG}/boba.webp`,
+  "drink-soft-drink":                `${IMG}/soft-drinks.jpg`,
+  "drink-juice-bottle":              `${IMG}/juice.jpg`,
+  "drink-jumex":                     `${IMG}/jumex.webp`,
+  "drink-coconut-water":             `${IMG}/coconut-water.avif`,
   // Desserts
   "dessert-cake-slice":              `${IMG}/white-choco-rasb-cheesecake.webp`,
 };
@@ -735,10 +741,10 @@ export const menuItems: MenuItem[] = ([
   {
     id: "rice-grilled-porkchop-and-coconut-shrimp",
     categoryId: "rice-plates",
-    name: "Grilled Shrimp Rice Plate",
-    vietnameseName: "Cơm Sườn Tôm Rim Nước Dưa",
+    name: "Grilled Pork Chop & Coconut Shrimp Rice Plate",
+    vietnameseName: "Cơm Sườn & Tôm Rim Nước Dưa",
     description:
-      "Grilled shrimp with jasmine rice and bokchoy.",
+      "Grilled pork chop and coconut shrimp with jasmine rice and bokchoy.",
     price: 17.95,
     tags: [],
     availableSizes: RICE_PLATE_BASE_OPTIONS,
