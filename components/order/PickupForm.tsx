@@ -1,6 +1,8 @@
 "use client";
 
 import { useCart } from "@/components/cart/cart-context";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import {
   PAY_IN_PERSON_NOTICE,
   PHONE_DEFAULT_REGION,
@@ -49,14 +51,23 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
     useState<"asap" | "later">("asap");
   const [pickupTime, setPickupTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  function clearFieldError(key: string) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setError(null);
+    setFormError(null);
+    setFieldErrors({});
 
-    // Strip all client-side price/name fields. The server recomputes
-    // prices from `data/menu.ts`; we only send references + selections.
     const selections = items.map((item) => ({
       menuItemId: item.menuItemId,
       quantity: item.quantity,
@@ -79,13 +90,24 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
 
     const parsed = orderRequestSchema.safeParse(payload);
     if (!parsed.success) {
-      const firstIssue = parsed.error.issues[0];
-      setError(firstIssue?.message ?? "Please review your details.");
+      const nextFields: Record<string, string> = {};
+      let itemsMsg: string | null = null;
+      for (const issue of parsed.error.issues) {
+        const p = issue.path;
+        if (p[0] === "pickupDetails" && typeof p[1] === "string") {
+          const key = p[1];
+          if (!nextFields[key]) nextFields[key] = issue.message;
+        } else if (p[0] === "items" || p.length === 0) {
+          itemsMsg = issue.message;
+        }
+      }
+      setFieldErrors(nextFields);
+      setFormError(itemsMsg ?? parsed.error.issues[0]?.message ?? "Please review your details.");
       return;
     }
 
     if (items.length === 0) {
-      setError("Your cart is empty.");
+      setFormError("Your cart is empty.");
       return;
     }
 
@@ -119,7 +141,7 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
       )}${tokenParam}`;
     } catch (err) {
       console.error(err);
-      setError(
+      setFormError(
         "Something went wrong while submitting your order. Please try again.",
       );
     } finally {
@@ -128,97 +150,83 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-sm font-semibold tracking-tight text-neutral-900">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <h2 className="text-base font-semibold tracking-tight text-neutral-900">
         Pickup details
       </h2>
-      {error && (
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
+      {formError && (
+        <p
+          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+          role="alert"
+        >
+          {formError}
         </p>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label
-            htmlFor="pickup-name"
-            className="mb-1 block text-xs font-medium text-neutral-700"
-          >
-            Name
-          </label>
-          <input
-            id="pickup-name"
-            type="text"
-            required
-            autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-full border border-neutral-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="pickup-phone"
-            className="mb-1 block text-xs font-medium text-neutral-700"
-          >
-            Phone
-          </label>
-          <input
-            id="pickup-phone"
-            type="tel"
-            required
-            autoComplete="tel"
-            inputMode="tel"
-            value={phoneDisplayValue}
-            onChange={(e) => {
-              const raw = e.target.value;
-              const nextDigits = digitsFromTelInput(raw);
-              // If the raw input shrank but only formatting characters
-              // were removed (e.g. backspacing the trailing ")" of
-              // "(416) "), drop a real digit so the field actually
-              // shortens instead of snapping back via the controlled
-              // value.
-              if (
-                nextDigits === phoneDigits &&
-                raw.length < phoneDisplayValue.length
-              ) {
-                setPhoneDigits(phoneDigits.slice(0, -1));
-                return;
-              }
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input
+          id="pickup-name"
+          label="Name"
+          required
+          autoComplete="name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            clearFieldError("name");
+          }}
+          error={fieldErrors.name}
+        />
+        <Input
+          id="pickup-phone"
+          label="Phone"
+          type="tel"
+          required
+          autoComplete="tel"
+          inputMode="tel"
+          value={phoneDisplayValue}
+          onChange={(e) => {
+            const raw = e.target.value;
+            const nextDigits = digitsFromTelInput(raw);
+            if (
+              nextDigits === phoneDigits &&
+              raw.length < phoneDisplayValue.length
+            ) {
+              setPhoneDigits(phoneDigits.slice(0, -1));
+            } else {
               setPhoneDigits(nextDigits);
-            }}
-            className="w-full rounded-full border border-neutral-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
-          />
-        </div>
-      </div>
-      <div>
-        <label
-          htmlFor="pickup-email"
-          className="mb-1 block text-xs font-medium text-neutral-700"
-        >
-          Email (optional)
-        </label>
-        <input
-          id="pickup-email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-full border border-neutral-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+            }
+            clearFieldError("phone");
+          }}
+          error={fieldErrors.phone}
         />
       </div>
+      <Input
+        id="pickup-email"
+        label="Email (optional)"
+        type="email"
+        autoComplete="email"
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          clearFieldError("email");
+        }}
+        error={fieldErrors.email}
+      />
 
-      <fieldset className="space-y-2">
-        <legend className="text-xs font-medium text-neutral-700">
+      <fieldset className="space-y-3">
+        <legend className="text-xs font-semibold text-neutral-700">
           Pickup time
         </legend>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setPickupTimeOption("asap")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+            onClick={() => {
+              setPickupTimeOption("asap");
+              clearFieldError("pickupTime");
+            }}
+            className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors duration-200 ${
               pickupTimeOption === "asap"
-                ? "bg-emerald-600 text-white"
-                : "bg-neutral-100 text-neutral-800"
+                ? "bg-brand-600 text-white shadow-sm"
+                : "border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
             }`}
           >
             ASAP
@@ -226,20 +234,20 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
           <button
             type="button"
             onClick={() => setPickupTimeOption("later")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+            className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors duration-200 ${
               pickupTimeOption === "later"
-                ? "bg-emerald-600 text-white"
-                : "bg-neutral-100 text-neutral-800"
+                ? "bg-brand-600 text-white shadow-sm"
+                : "border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50"
             }`}
           >
             Choose a time
           </button>
         </div>
         {pickupTimeOption === "later" && (
-          <div className="pt-2">
+          <div className="pt-1">
             <label
               htmlFor="pickup-time"
-              className="mb-1 block text-xs text-neutral-700"
+              className="mb-1.5 block text-xs font-medium text-neutral-700"
             >
               Desired pickup time
             </label>
@@ -250,29 +258,42 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
               max={PICKUP_END_TIME}
               step={900}
               value={pickupTime}
-              onChange={(e) => setPickupTime(e.target.value)}
-              className="w-full rounded-full border border-neutral-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+              onChange={(e) => {
+                setPickupTime(e.target.value);
+                clearFieldError("pickupTime");
+              }}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+              aria-invalid={fieldErrors.pickupTime ? true : undefined}
             />
-            <p className="mt-1 text-[11px] text-neutral-600">
+            {fieldErrors.pickupTime && (
+              <p className="mt-1.5 text-xs text-red-600">{fieldErrors.pickupTime}</p>
+            )}
+            <p className="mt-1.5 text-[11px] text-neutral-600">
               Available pickup times: 11:30 AM - 10:45 PM
             </p>
           </div>
         )}
       </fieldset>
 
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+      <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-950">
         <p className="font-semibold">Pay in person at pickup</p>
-        <p className="mt-0.5 text-emerald-800">{PAY_IN_PERSON_NOTICE}</p>
-        <p className="mt-1 text-[11px] text-emerald-700">{PRICES_NOTICE}</p>
+        <p className="mt-1 text-xs leading-relaxed text-brand-900/90">
+          {PAY_IN_PERSON_NOTICE}
+        </p>
+        <p className="mt-2 text-center text-[11px] text-brand-800/80">
+          {PRICES_NOTICE}
+        </p>
       </div>
 
-      <button
+      <Button
         type="submit"
-        disabled={isSubmitting || items.length === 0}
-        className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-600/30 transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-neutral-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+        size="lg"
+        className="w-full"
+        loading={isSubmitting}
+        disabled={items.length === 0}
       >
-        {isSubmitting ? "Placing order…" : "Place pickup order"}
-      </button>
+        Place pickup order
+      </Button>
     </form>
   );
 }

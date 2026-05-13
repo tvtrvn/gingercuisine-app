@@ -1,7 +1,12 @@
 "use client";
 
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { IconButton } from "@/components/ui/IconButton";
 import { ACTIVE_ORDER_STATUSES, Order, OrderStatus } from "@/lib/types";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DashboardTopBar } from "./DashboardTopBar";
 import { NewOrderToast } from "./NewOrderToast";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailsDrawer } from "./OrderDetailsDrawer";
@@ -10,23 +15,36 @@ import { useNewOrderAlarm } from "./useNewOrderAlarm";
 type SortMode = "newest" | "oldest" | "pickup";
 type ScopeMode = "active" | "all";
 
-const COLUMN_DEFS: { status: OrderStatus; label: string; accent: string }[] = [
-  { status: "new", label: "New", accent: "from-rose-100 to-white" },
+const COLUMN_DEFS: {
+  status: OrderStatus;
+  label: string;
+  strip: string;
+  headerTint: string;
+}[] = [
+  { status: "new", label: "New", strip: "bg-blue-600", headerTint: "text-blue-950" },
   {
     status: "acknowledged",
     label: "Acknowledged",
-    accent: "from-amber-100 to-white",
+    strip: "bg-violet-600",
+    headerTint: "text-violet-950",
   },
-  { status: "ready", label: "Ready", accent: "from-emerald-100 to-white" },
+  {
+    status: "ready",
+    label: "Ready",
+    strip: "bg-emerald-600",
+    headerTint: "text-emerald-950",
+  },
   {
     status: "completed",
     label: "Completed",
-    accent: "from-neutral-100 to-white",
+    strip: "bg-neutral-400",
+    headerTint: "text-neutral-800",
   },
   {
     status: "cancelled",
     label: "Cancelled",
-    accent: "from-neutral-200 to-white",
+    strip: "bg-red-500",
+    headerTint: "text-red-950",
   },
 ];
 
@@ -34,12 +52,14 @@ interface OrderBoardProps {
   initialOrders: Order[];
   pollIntervalMs: number;
   historyWindowHours: number;
+  restaurantName: string;
 }
 
 export function OrderBoard({
   initialOrders,
   pollIntervalMs,
   historyWindowHours,
+  restaurantName,
 }: OrderBoardProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [scope, setScope] = useState<ScopeMode>("active");
@@ -54,8 +74,8 @@ export function OrderBoard({
   );
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [soundMuted, setSoundMuted] = useState(false);
 
-  // --- Search (older orders, DB-backed) ---
   const [searchResults, setSearchResults] = useState<Order[] | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -63,8 +83,6 @@ export function OrderBoard({
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const isSearchMode = debouncedSearch.length >= 2;
 
-  // Track every order ID ever seen so we can detect genuinely new orders
-  // without firing a toast on reload or for orders seen on a prior poll.
   const seenIdsRef = useRef<Set<string>>(
     new Set(initialOrders.map((o) => o.id)),
   );
@@ -86,7 +104,6 @@ export function OrderBoard({
       setLastFetchAt(data.serverTime);
       setFetchError(null);
 
-      // Detect brand-new orders (placed since board mounted) and notify once.
       const freshNewOrders = data.orders
         .filter(
           (o) =>
@@ -114,8 +131,6 @@ export function OrderBoard({
     }
   }, [historyWindowHours]);
 
-  // Poll only when we're NOT in search mode. Search mode freezes the board
-  // so staff can focus on results without the list shifting underneath them.
   useEffect(() => {
     if (isSearchMode) return;
     const id = setInterval(fetchOrders, pollIntervalMs);
@@ -127,7 +142,6 @@ export function OrderBoard({
     };
   }, [fetchOrders, pollIntervalMs, isSearchMode]);
 
-  // Debounced DB search when the user types 2+ chars.
   useEffect(() => {
     if (!isSearchMode) {
       setSearchResults(null);
@@ -169,7 +183,6 @@ export function OrderBoard({
       },
     ) => {
       setUpdatingId(orderId);
-      // Optimistic update — apply to whichever list the order lives in.
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, ...body } : o)),
       );
@@ -270,7 +283,7 @@ export function OrderBoard({
     [orders],
   );
 
-  const { needsGesture } = useNewOrderAlarm(newCount > 0);
+  const { needsGesture } = useNewOrderAlarm(newCount > 0 && !soundMuted);
 
   const counts = useMemo(() => {
     const c: Record<OrderStatus, number> = {
@@ -296,46 +309,63 @@ export function OrderBoard({
   }, [scope]);
 
   return (
-    <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-full border border-neutral-200 bg-neutral-100 p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setScope("active")}
-              disabled={isSearchMode}
-              className={`rounded-full px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50 ${
-                scope === "active"
-                  ? "bg-white text-neutral-900 shadow-sm"
-                  : "text-neutral-600"
-              }`}
-            >
-              Active only
-            </button>
-            <button
-              type="button"
-              onClick={() => setScope("all")}
-              disabled={isSearchMode}
-              className={`rounded-full px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50 ${
-                scope === "all"
-                  ? "bg-white text-neutral-900 shadow-sm"
-                  : "text-neutral-600"
-              }`}
-            >
-              Last {historyWindowHours}h
-            </button>
-          </div>
+    <div className="space-y-0">
+      <DashboardTopBar
+        restaurantName={restaurantName}
+        counts={{
+          new: counts.new,
+          acknowledged: counts.acknowledged,
+          ready: counts.ready,
+        }}
+        lastFetchAt={lastFetchAt}
+        isFetching={isFetching}
+        fetchError={fetchError}
+        onRefresh={() => void fetchOrders()}
+        soundMuted={soundMuted}
+        onToggleSound={() => setSoundMuted((m) => !m)}
+        needsGesture={needsGesture}
+        newCount={newCount}
+      />
 
-          <label className="text-xs font-medium text-neutral-600">
-            Status
-            <select
+      <div className="space-y-4 px-4 py-4 md:px-6 md:py-6">
+        <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-[var(--shadow-card)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-neutral-200 bg-neutral-100 p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setScope("active")}
+                disabled={isSearchMode}
+                className={`rounded-lg px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  scope === "active"
+                    ? "bg-white text-neutral-900 shadow-sm"
+                    : "text-neutral-600"
+                }`}
+              >
+                Active only
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope("all")}
+                disabled={isSearchMode}
+                className={`rounded-lg px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  scope === "all"
+                    ? "bg-white text-neutral-900 shadow-sm"
+                    : "text-neutral-600"
+                }`}
+              >
+                Last {historyWindowHours}h
+              </button>
+            </div>
+
+            <Select
+              id="board-status-filter"
+              label="Status"
               value={statusFilter}
               disabled={isSearchMode}
               onChange={(e) =>
                 setStatusFilter(e.target.value as OrderStatus | "all")
               }
-              className="ml-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-w-[10rem] text-xs font-semibold"
             >
               <option value="all">All</option>
               {COLUMN_DEFS.map((c) => (
@@ -343,200 +373,175 @@ export function OrderBoard({
                   {c.label} ({counts[c.status] ?? 0})
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
 
-          <label className="text-xs font-medium text-neutral-600">
-            Sort
-            <select
+            <Select
+              id="board-sort-filter"
+              label="Sort"
               value={sortMode}
               disabled={isSearchMode}
               onChange={(e) => setSortMode(e.target.value as SortMode)}
-              className="ml-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-w-[9rem] text-xs font-semibold"
             >
               <option value="newest">Newest</option>
               <option value="oldest">Oldest</option>
               <option value="pickup">By pickup time</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <input
-              type="search"
-              placeholder="Search older orders (name, phone, #)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-64 rounded-full border border-neutral-300 px-3 py-1.5 pr-8 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-              aria-label="Search all orders"
-            />
-            {search.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700"
-                aria-label="Clear search"
-              >
-                ×
-              </button>
-            )}
+            </Select>
           </div>
-          {!isSearchMode && (
-            <button
-              type="button"
-              onClick={fetchOrders}
-              disabled={isFetching}
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <span
-                className={`inline-block h-2 w-2 rounded-full ${
-                  fetchError
-                    ? "bg-rose-500"
-                    : isFetching
-                      ? "bg-amber-500 animate-pulse"
-                      : "bg-emerald-500"
-                }`}
-                aria-hidden
+
+          <div className="flex w-full flex-col gap-2 sm:max-w-xs sm:shrink-0">
+            <span className="text-xs font-medium text-neutral-700">
+              Search older orders
+            </span>
+            <div className="flex items-center gap-1">
+              <Input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Name, phone, or order #"
+                className="min-w-0 flex-1"
+                aria-label="Search all orders by name, phone, or order number"
               />
-              Refresh
-            </button>
-          )}
-          <p className="text-[11px] text-neutral-500">
-            {isSearchMode
-              ? isSearching
-                ? "Searching…"
-                : `${searchResults?.length ?? 0} result${
-                    (searchResults?.length ?? 0) === 1 ? "" : "s"
-                  }${searchTruncated ? "+" : ""}`
-              : `Last sync ${new Date(lastFetchAt).toLocaleTimeString()}`}
-          </p>
-        </div>
-      </div>
-
-      {needsGesture && newCount > 0 && (
-        <p className="rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-          Tap or click anywhere to enable new-order sound.
-        </p>
-      )}
-
-      {/* Contextual banner */}
-      {!isSearchMode && (
-        <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
-          Showing all active orders plus completed/cancelled from the last{" "}
-          <strong>{historyWindowHours} hours</strong>. To find older orders,
-          type a name, phone number, or order # in the search box.
-        </p>
-      )}
-      {isSearchMode && searchTruncated && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Showing the first {searchResults?.length ?? 0} matches. Narrow your
-          search for more specific results.
-        </p>
-      )}
-      {fetchError && !isSearchMode && (
-        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-          {fetchError}
-        </p>
-      )}
-      {searchError && (
-        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-          {searchError}
-        </p>
-      )}
-
-      {/* Search results view */}
-      {isSearchMode ? (
-        <section className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm">
-          {isSearching && (searchResults === null || searchResults.length === 0) && (
-            <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-8 text-center text-sm text-neutral-500">
-              Searching…
-            </p>
-          )}
-          {!isSearching && searchResults && searchResults.length === 0 && (
-            <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-8 text-center text-sm text-neutral-500">
-              No orders matched &ldquo;{debouncedSearch}&rdquo;.
-            </p>
-          )}
-          {searchResults && searchResults.length > 0 && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {searchResults.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  isNewUnacknowledged={false}
-                  onOpenDetails={(o) => setSelectedOrder(o)}
-                  onUpdateStatus={handleUpdateStatus}
-                  disabled={updatingId === order.id}
-                />
-              ))}
+              {search.length > 0 && (
+                <IconButton
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => setSearch("")}
+                >
+                  <X className="h-4 w-4" />
+                </IconButton>
+              )}
             </div>
-          )}
-        </section>
-      ) : (
-        /* Kanban board view */
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {visibleColumns.map((col) => {
-            const columnOrders = filteredBoardOrders.filter(
-              (o) => o.orderStatus === col.status,
-            );
-            return (
-              <section
-                key={col.status}
-                className={`flex flex-col rounded-2xl border border-neutral-200 bg-gradient-to-b ${col.accent} p-3`}
-                aria-label={`${col.label} orders`}
-              >
-                <header className="mb-2 flex items-center justify-between gap-2 px-1">
-                  <h2 className="text-sm font-bold tracking-wide text-neutral-900 uppercase">
-                    {col.label}
-                  </h2>
-                  <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">
-                    {columnOrders.length}
-                  </span>
-                </header>
-                <div className="space-y-3">
-                  {columnOrders.length === 0 && (
-                    <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-6 text-center text-xs text-neutral-500">
-                      No orders
-                    </p>
-                  )}
-                  {columnOrders.map((order) => (
-                    <OrderCard
-                      key={order.id}
-                      order={order}
-                      isNewUnacknowledged={order.orderStatus === "new"}
-                      onOpenDetails={(o) => setSelectedOrder(o)}
-                      onUpdateStatus={handleUpdateStatus}
-                      disabled={updatingId === order.id}
-                    />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+          </div>
         </div>
-      )}
 
-      <OrderDetailsDrawer
-        order={selectedOrder}
-        onClose={() => setSelectedOrder(null)}
-        onUpdateStatus={handleUpdateStatus}
-        onCancelOrder={handleCancelOrder}
-      />
+        <p className="text-[11px] text-neutral-500 sm:text-right">
+          {isSearchMode
+            ? isSearching
+              ? "Searching…"
+              : `${searchResults?.length ?? 0} result${
+                  (searchResults?.length ?? 0) === 1 ? "" : "s"
+                }${searchTruncated ? "+" : ""}`
+            : null}
+        </p>
 
-      <NewOrderToast
-        order={toastOrder}
-        onDismiss={() => setToastOrder(null)}
-        onView={(o) => {
-          setToastOrder(null);
-          setSelectedOrder(o);
-        }}
-      />
+        {!isSearchMode && (
+          <p className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs leading-relaxed text-neutral-600">
+            Showing all active orders plus completed/cancelled from the last{" "}
+            <strong>{historyWindowHours} hours</strong>. To find older orders,
+            type a name, phone number, or order # in the search box.
+          </p>
+        )}
+        {isSearchMode && searchTruncated && (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Showing the first {searchResults?.length ?? 0} matches. Narrow your
+            search for more specific results.
+          </p>
+        )}
+        {fetchError && !isSearchMode && (
+          <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {fetchError}
+          </p>
+        )}
+        {searchError && (
+          <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {searchError}
+          </p>
+        )}
+
+        {isSearchMode ? (
+          <section className="rounded-2xl border border-neutral-200 bg-white p-3 shadow-[var(--shadow-card)]">
+            {isSearching && (searchResults === null || searchResults.length === 0) && (
+              <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-8 text-center text-sm text-neutral-500">
+                Searching…
+              </p>
+            )}
+            {!isSearching && searchResults && searchResults.length === 0 && (
+              <p className="rounded-xl border border-dashed border-neutral-300 bg-white/50 px-3 py-8 text-center text-sm text-neutral-500">
+                No orders matched &ldquo;{debouncedSearch}&rdquo;.
+              </p>
+            )}
+            {searchResults && searchResults.length > 0 && (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {searchResults.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    isNewUnacknowledged={false}
+                    onOpenDetails={(o) => setSelectedOrder(o)}
+                    onUpdateStatus={handleUpdateStatus}
+                    disabled={updatingId === order.id}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {visibleColumns.map((col) => {
+              const columnOrders = filteredBoardOrders.filter(
+                (o) => o.orderStatus === col.status,
+              );
+              return (
+                <section
+                  key={col.status}
+                  className="flex max-h-[calc(100vh-12rem)] flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[var(--shadow-card)]"
+                  aria-label={`${col.label} orders`}
+                >
+                  <div className={`h-1 w-full shrink-0 ${col.strip}`} />
+                  <header className="sticky top-0 z-[1] flex items-center justify-between gap-2 border-b border-neutral-100 bg-white/95 px-3 py-2.5 backdrop-blur-sm">
+                    <h2
+                      className={`text-xs font-bold uppercase tracking-wide ${col.headerTint}`}
+                    >
+                      {col.label}
+                    </h2>
+                    <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">
+                      {columnOrders.length}
+                    </span>
+                  </header>
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+                    {columnOrders.length === 0 && (
+                      <p className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/80 px-3 py-6 text-center text-xs text-neutral-500">
+                        No orders
+                      </p>
+                    )}
+                    {columnOrders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        isNewUnacknowledged={order.orderStatus === "new"}
+                        onOpenDetails={(o) => setSelectedOrder(o)}
+                        onUpdateStatus={handleUpdateStatus}
+                        disabled={updatingId === order.id}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+
+        <OrderDetailsDrawer
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onUpdateStatus={handleUpdateStatus}
+          onCancelOrder={handleCancelOrder}
+        />
+
+        <NewOrderToast
+          order={toastOrder}
+          onDismiss={() => setToastOrder(null)}
+          onView={(o) => {
+            setToastOrder(null);
+            setSelectedOrder(o);
+          }}
+        />
+      </div>
     </div>
   );
 }
 
-// Small local hook — trims React state churn while the user is still typing.
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {

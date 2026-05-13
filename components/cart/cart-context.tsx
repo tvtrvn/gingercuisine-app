@@ -30,6 +30,9 @@ interface CartContextValue {
   subtotal: number;
   itemCount: number;
   lastAddedMessage: string | null;
+  /** Mobile /order full checkout sheet (controlled by FloatingCart + Order page) */
+  checkoutSheetOpen: boolean;
+  setCheckoutSheetOpen: (open: boolean) => void;
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -37,6 +40,7 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [lastAddedMessage, setLastAddedMessage] = useState<string | null>(null);
+  const [checkoutSheetOpen, setCheckoutSheetOpen] = useState(false);
   const clearMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addItem = useCallback(
@@ -194,6 +198,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     subtotal,
     itemCount,
     lastAddedMessage,
+    checkoutSheetOpen,
+    setCheckoutSheetOpen,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

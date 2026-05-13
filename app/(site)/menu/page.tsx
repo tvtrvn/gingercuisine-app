@@ -4,18 +4,22 @@
 
 import { useCart } from "@/components/cart/cart-context";
 import { PaperMenuModal } from "@/components/ui/PaperMenuModal";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardBody } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { menuCategories, menuItems } from "@/data/menu";
 import {
-    AddonOption,
-    DietaryTag,
-    MenuCategoryId,
-    MenuItem,
-    SizeOption,
+  AddonOption,
+  DietaryTag,
+  MenuCategoryId,
+  MenuItem,
+  SizeOption,
 } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
+import { ShoppingCart } from "lucide-react";
 import Image from "next/image";
-
-
 import { useMemo, useState } from "react";
 
 const dietaryTagLabels: Record<DietaryTag, string> = {
@@ -58,7 +62,9 @@ export default function MenuPage() {
       return undefined;
     }
     const selectedSizeId =
-      selectedSizeByItem[item.id] || item.defaultSizeId || item.availableSizes[0].id;
+      selectedSizeByItem[item.id] ||
+      item.defaultSizeId ||
+      item.availableSizes[0].id;
     return item.availableSizes.find((size) => size.id === selectedSizeId);
   }
 
@@ -121,13 +127,22 @@ export default function MenuPage() {
     return map;
   }, [filtered]);
 
+  const visibleCategories = useMemo(
+    () =>
+      menuCategories.filter((c) => {
+        const items = itemsByCategory.get(c.id);
+        return items && items.length > 0;
+      }),
+    [itemsByCategory],
+  );
+
   return (
-    <div className="space-y-8">
-      <header className="space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+    <div className="space-y-10">
+      <header className="space-y-4">
+        <h1 className="text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">
           Menu
         </h1>
-        <p className="max-w-2xl text-sm text-neutral-700">
+        <p className="max-w-2xl text-sm leading-relaxed text-neutral-600 sm:text-base">
           Browse our full Vietnamese menu. Use search and filters to quickly
           find your favorite pho, bánh mì, vermicelli bowls, and more.
         </p>
@@ -137,28 +152,22 @@ export default function MenuPage() {
       {/* Filters */}
       <section
         aria-label="Menu filters"
-        className="grid gap-3 rounded-2xl bg-white p-4 shadow-sm sm:grid-cols-3"
+        className="rounded-2xl border border-neutral-200/80 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5"
       >
-        <div className="sm:col-span-1">
-          <label className="mb-1 block text-xs font-medium text-neutral-700">
-            Search
-          </label>
-          <input
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Input
             type="search"
+            label="Search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search dishes or ingredients…"
-            className="w-full rounded-full border border-neutral-300 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
           />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-700">
-            Category
-          </label>
-          <select
+          <Select
+            label="Category"
             value={category}
-            onChange={(e) => setCategory(e.target.value as MenuCategoryId | "all")}
-            className="w-full rounded-full border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+            onChange={(e) =>
+              setCategory(e.target.value as MenuCategoryId | "all")
+            }
           >
             <option value="all">All categories</option>
             {menuCategories.map((cat) => (
@@ -166,16 +175,11 @@ export default function MenuPage() {
                 {cat.name}
               </option>
             ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-700">
-            Dietary
-          </label>
-          <select
+          </Select>
+          <Select
+            label="Dietary"
             value={tag}
             onChange={(e) => setTag(e.target.value as DietaryTag | "all")}
-            className="w-full rounded-full border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
           >
             <option value="all">Any</option>
             {Object.entries(dietaryTagLabels).map(([key, label]) => (
@@ -183,221 +187,260 @@ export default function MenuPage() {
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </section>
 
+      {/* Sticky category jump nav */}
+      {visibleCategories.length > 1 && (
+        <nav
+          aria-label="Jump to category"
+          className="sticky top-16 z-30 -mx-4 overflow-x-auto border-y border-neutral-200/80 bg-neutral-50/95 px-4 py-2 backdrop-blur-sm sm:-mx-6 sm:px-6 md:top-16"
+        >
+          <ul className="flex min-w-0 gap-2 pb-1">
+            {visibleCategories.map((cat) => (
+              <li key={cat.id} className="shrink-0">
+                <a
+                  href={`#cat-${cat.id}`}
+                  className="inline-flex rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition-colors duration-200 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-900"
+                >
+                  {cat.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
       {/* Menu sections */}
-      <section className="space-y-10">
+      <section className="space-y-14">
         {menuCategories.map((cat) => {
           const items = itemsByCategory.get(cat.id);
           if (!items || items.length === 0) return null;
 
           return (
-            <section key={cat.id} aria-label={cat.name} className="space-y-3">
+            <section
+              key={cat.id}
+              id={`cat-${cat.id}`}
+              aria-label={cat.name}
+              className="scroll-mt-36 space-y-5"
+            >
               <div>
-                <h2 className="text-lg font-semibold tracking-tight text-neutral-900">
+                <h2 className="text-xl font-semibold tracking-tight text-neutral-900">
                   {cat.name}
                 </h2>
                 {cat.description && (
-                  <p className="text-xs text-neutral-600">{cat.description}</p>
+                  <p className="mt-1 text-sm text-neutral-600">
+                    {cat.description}
+                  </p>
                 )}
                 {cat.availabilityNote && (
-                  <p className="mt-1 text-xs italic text-neutral-500">
+                  <p className="mt-2 text-xs italic text-neutral-500">
                     {cat.availabilityNote}
                   </p>
                 )}
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-5 sm:grid-cols-2">
                 {items.map((item) => (
-                  <article
-                    key={item.id}
-                    className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm"
-                  >
-                    <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl sm:h-24 sm:w-24">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          width={96}
-                          height={96}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-amber-100 via-emerald-50 to-rose-100" />
-                      )}
-                    </div>
-                    <div className="flex flex-1 flex-col">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="text-sm font-semibold text-neutral-900">
-                            {item.name}
-                          </h3>
-                          {item.vietnameseName && (
-                            <p className="text-xs text-emerald-700">
-                              {item.vietnameseName}
-                            </p>
-                          )}
+                  <Card key={item.id} className="overflow-hidden">
+                    <CardBody className="flex flex-col gap-4 p-0 sm:flex-row sm:gap-0">
+                      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-gradient-to-br from-brand-50 via-amber-50 to-rose-50 sm:aspect-square sm:w-44 sm:self-start lg:w-52">
+                        {item.image ? (
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            className="object-cover transition-transform duration-200 hover:scale-[1.02]"
+                            sizes="(min-width:1024px) 13rem, (min-width:640px) 11rem, 100vw"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="text-base font-semibold text-neutral-900">
+                              {item.name}
+                            </h3>
+                            {item.vietnameseName && (
+                              <p className="text-xs font-medium text-brand-800">
+                                {item.vietnameseName}
+                              </p>
+                            )}
+                          </div>
+                          <p className="shrink-0 text-base font-semibold tabular-nums text-neutral-900">
+                            {formatCurrency(getDisplayPrice(item))}
+                          </p>
                         </div>
-                        <p className="text-sm font-semibold text-neutral-900">
-                          {formatCurrency(getDisplayPrice(item))}
+                        <p className="text-xs leading-relaxed text-neutral-600 sm:text-sm">
+                          {item.description}
                         </p>
-                      </div>
-                      <p className="mt-2 text-xs text-neutral-600">
-                        {item.description}
-                      </p>
-                      {item.availableSizes && item.availableSizes.length > 0 && (
-                        <div className="mt-3">
-                          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-600">
-                            Size
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {item.availableSizes.map((size) => {
-                              const isSelected =
-                                (selectedSizeByItem[item.id] ||
-                                  item.defaultSizeId ||
-                                  item.availableSizes?.[0]?.id) === size.id;
-                              return (
-                                <button
-                                  key={size.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedSizeByItem((prev) => ({
-                                      ...prev,
-                                      [item.id]: size.id,
-                                    }))
-                                  }
-                                  className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                                    isSelected
-                                      ? "bg-emerald-600 text-white"
-                                      : "bg-neutral-100 text-neutral-700"
-                                  }`}
-                                >
-                                  {size.label}
-                                  {size.priceDelta > 0
-                                    ? ` (+${formatCurrency(size.priceDelta)})`
-                                    : ""}
-                                </button>
-                              );
-                            })}
+                        {item.availableSizes &&
+                          item.availableSizes.length > 0 && (
+                            <div>
+                              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                                Size
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {item.availableSizes.map((size) => {
+                                  const isSelected =
+                                    (selectedSizeByItem[item.id] ||
+                                      item.defaultSizeId ||
+                                      item.availableSizes?.[0]?.id) === size.id;
+                                  return (
+                                    <button
+                                      key={size.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedSizeByItem((prev) => ({
+                                          ...prev,
+                                          [item.id]: size.id,
+                                        }))
+                                      }
+                                      className={cn(
+                                        "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
+                                        isSelected
+                                          ? "border-brand-600 bg-brand-600 text-white"
+                                          : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-neutral-300",
+                                      )}
+                                    >
+                                      {size.label}
+                                      {size.priceDelta > 0
+                                        ? ` (+${formatCurrency(size.priceDelta)})`
+                                        : ""}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        {item.availableFlavors &&
+                          item.availableFlavors.length > 0 && (
+                            <div>
+                              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                                Flavor
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {item.availableFlavors.map((flavor) => {
+                                  const isSelected =
+                                    (selectedFlavorByItem[item.id] ||
+                                      item.availableFlavors?.[0]?.id) ===
+                                    flavor.id;
+                                  return (
+                                    <button
+                                      key={flavor.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedFlavorByItem((prev) => ({
+                                          ...prev,
+                                          [item.id]: flavor.id,
+                                        }))
+                                      }
+                                      className={cn(
+                                        "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
+                                        isSelected
+                                          ? "border-brand-600 bg-brand-600 text-white"
+                                          : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-neutral-300",
+                                      )}
+                                    >
+                                      {flavor.name}
+                                      {flavor.price > 0
+                                        ? ` (+${formatCurrency(flavor.price)})`
+                                        : ""}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        {item.availableAddons &&
+                          item.availableAddons.length > 0 && (
+                            <div>
+                              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                                Add-ons
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {item.availableAddons.map((addon) => {
+                                  const selectedIds =
+                                    selectedAddonsByItem[item.id] ?? [];
+                                  const isSelected = selectedIds.includes(
+                                    addon.id,
+                                  );
+                                  return (
+                                    <button
+                                      key={addon.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedAddonsByItem((prev) => {
+                                          const current = prev[item.id] ?? [];
+                                          const next = current.includes(
+                                            addon.id,
+                                          )
+                                            ? current.filter(
+                                                (id) => id !== addon.id,
+                                              )
+                                            : [...current, addon.id];
+                                          return { ...prev, [item.id]: next };
+                                        })
+                                      }
+                                      className={cn(
+                                        "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
+                                        isSelected
+                                          ? "border-brand-500 bg-brand-50 text-brand-900 ring-1 ring-brand-200"
+                                          : "border-neutral-200 bg-white text-neutral-700 hover:border-brand-200",
+                                      )}
+                                    >
+                                      {addon.name} (+
+                                      {formatCurrency(addon.price)})
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        <div>
+                          <label
+                            htmlFor={`notes-${item.id}`}
+                            className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-500"
+                          >
+                            Notes (optional)
+                          </label>
+                          <textarea
+                            id={`notes-${item.id}`}
+                            rows={2}
+                            placeholder="e.g. allergies, no cilantro, light sauce"
+                            value={notesByItem[item.id] ?? ""}
+                            onChange={(e) =>
+                              setNotesByItem((prev) => ({
+                                ...prev,
+                                [item.id]: e.target.value,
+                              }))
+                            }
+                            maxLength={300}
+                            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                          />
+                        </div>
+                        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
+                          <div className="flex flex-wrap gap-1">
+                            {item.tags?.map((t) => (
+                              <Badge key={t} tone="success" className="text-[10px]">
+                                {dietaryTagLabels[t]}
+                              </Badge>
+                            ))}
                           </div>
+                          <Button
+                            type="button"
+                            size="md"
+                            iconLeft={
+                              <ShoppingCart className="h-4 w-4" aria-hidden />
+                            }
+                            onClick={() => handleAddToCart(item)}
+                          >
+                            Add to cart
+                          </Button>
                         </div>
-                      )}
-                      {item.availableFlavors && item.availableFlavors.length > 0 && (
-                        <div className="mt-3">
-                          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-600">
-                            Flavor
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {item.availableFlavors.map((flavor) => {
-                              const isSelected =
-                                (selectedFlavorByItem[item.id] ||
-                                  item.availableFlavors?.[0]?.id) === flavor.id;
-                              return (
-                                <button
-                                  key={flavor.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedFlavorByItem((prev) => ({
-                                      ...prev,
-                                      [item.id]: flavor.id,
-                                    }))
-                                  }
-                                  className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                                    isSelected
-                                      ? "bg-emerald-600 text-white"
-                                      : "bg-neutral-100 text-neutral-700"
-                                  }`}
-                                >
-                                  {flavor.name}
-                                  {flavor.price > 0
-                                    ? ` (+${formatCurrency(flavor.price)})`
-                                    : ""}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {item.availableAddons && item.availableAddons.length > 0 && (
-                        <div className="mt-3">
-                          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-600">
-                            Add-ons
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {item.availableAddons.map((addon) => {
-                              const selectedIds =
-                                selectedAddonsByItem[item.id] ?? [];
-                              const isSelected = selectedIds.includes(addon.id);
-                              return (
-                                <button
-                                  key={addon.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedAddonsByItem((prev) => {
-                                      const current = prev[item.id] ?? [];
-                                      const next = current.includes(addon.id)
-                                        ? current.filter((id) => id !== addon.id)
-                                        : [...current, addon.id];
-                                      return { ...prev, [item.id]: next };
-                                    })
-                                  }
-                                  className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                                    isSelected
-                                      ? "bg-amber-200 text-amber-900"
-                                      : "bg-neutral-100 text-neutral-700"
-                                  }`}
-                                >
-                                  {addon.name} (+{formatCurrency(addon.price)})
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      <div className="mt-3">
-                        <label
-                          htmlFor={`notes-${item.id}`}
-                          className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-neutral-600"
-                        >
-                          Notes (optional)
-                        </label>
-                        <textarea
-                          id={`notes-${item.id}`}
-                          rows={2}
-                          placeholder="e.g. allergies, no cilantro, light sauce"
-                          value={notesByItem[item.id] ?? ""}
-                          onChange={(e) =>
-                            setNotesByItem((prev) => ({
-                              ...prev,
-                              [item.id]: e.target.value,
-                            }))
-                          }
-                          maxLength={300}
-                          className="w-full rounded-2xl border border-neutral-300 px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
-                        />
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap gap-1">
-                          {item.tags?.map((t) => (
-                            <span
-                              key={t}
-                              className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-800"
-                            >
-                              {dietaryTagLabels[t]}
-                            </span>
-                          ))}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleAddToCart(item)}
-                          className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-emerald-600/30 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-                        >
-                          Add to cart
-                        </button>
-                      </div>
-                    </div>
-                  </article>
+                    </CardBody>
+                  </Card>
                 ))}
               </div>
             </section>
@@ -407,4 +450,3 @@ export default function MenuPage() {
     </div>
   );
 }
-

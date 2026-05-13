@@ -1,10 +1,10 @@
 import { RESTAURANT_NAME, SITE_URL } from "@/lib/config";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-neutral-50 text-neutral-900 antialiased`}
+        className={`${inter.variable} ${geistMono.variable} font-sans bg-neutral-50 text-neutral-900 antialiased`}
       >
         {children}
       </body>

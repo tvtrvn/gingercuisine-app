@@ -1,5 +1,4 @@
 import { OrderBoard } from "@/components/dashboard/OrderBoard";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import {
   DASHBOARD_HISTORY_WINDOW_HOURS,
   DASHBOARD_POLL_INTERVAL_MS,
@@ -22,15 +21,11 @@ export default async function DashboardHome() {
   });
 
   return (
-    <>
-      <DashboardHeader restaurantName={RESTAURANT_NAME} />
-      <div className="px-4 py-4 md:px-6 md:py-6">
-        <OrderBoard
-          initialOrders={orders}
-          pollIntervalMs={DASHBOARD_POLL_INTERVAL_MS}
-          historyWindowHours={DASHBOARD_HISTORY_WINDOW_HOURS}
-        />
-      </div>
-    </>
+    <OrderBoard
+      initialOrders={orders}
+      pollIntervalMs={DASHBOARD_POLL_INTERVAL_MS}
+      historyWindowHours={DASHBOARD_HISTORY_WINDOW_HOURS}
+      restaurantName={RESTAURANT_NAME}
+    />
   );
 }

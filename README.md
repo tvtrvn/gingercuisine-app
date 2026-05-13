@@ -4,6 +4,8 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 
 **Stack:** Next.js (App Router) · TypeScript · Tailwind CSS · MongoDB (via Prisma) · Resend (email) · Upstash Redis (rate limiting)
 
+> Built for real-world use in a family-owned restaurant.
+
 ---
 
 ## What the site does
@@ -189,7 +191,7 @@ components/
   layout/ (nav, footer, sticky button)
   order/ (cart summary, pickup form, confirmation tracking, recent orders)
   about/VideoEmbed.tsx           Vimeo embed facade (scroll-to-play muted / tap-to-play) for `/about`
-  dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, useNewOrderAlarm, StatusBadge, ElapsedTime, DashboardHeader)
+  dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, useNewOrderAlarm, StatusBadge, ElapsedTime, DashboardTopBar)
   ui/
 
 lib/
