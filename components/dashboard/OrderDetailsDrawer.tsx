@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { CURRENCY } from "@/lib/config";
 import { Order, OrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { OrderStatusBadge } from "./StatusBadge";
 
@@ -20,6 +20,12 @@ const WORKFLOW_STEPS: { status: OrderStatus; label: string }[] = [
   { status: "ready", label: "Ready" },
   { status: "completed", label: "Completed" },
 ];
+
+const UNDO_TARGET: Partial<Record<OrderStatus, { status: OrderStatus; label: string }>> = {
+  acknowledged: { status: "new", label: "New" },
+  ready: { status: "acknowledged", label: "Acknowledged" },
+  completed: { status: "ready", label: "Ready" },
+};
 
 function statusRank(status: OrderStatus): number {
   switch (status) {
@@ -55,8 +61,8 @@ function OrderDetailsPanel({
       : order.pickupDetails.pickupTime ?? "Later today";
 
   const rankCurrent = statusRank(order.orderStatus);
-  const isTerminal =
-    order.orderStatus === "cancelled" || order.orderStatus === "completed";
+  const isCancelled = order.orderStatus === "cancelled";
+  const undoTarget = UNDO_TARGET[order.orderStatus];
 
   return (
     <>
@@ -105,7 +111,7 @@ function OrderDetailsPanel({
         </header>
 
         <section className="space-y-4 px-5 py-5">
-          {!isTerminal && (
+          {!isCancelled && (
             <div>
               <h3 className="text-sm font-semibold text-neutral-900">
                 Update status
@@ -113,9 +119,7 @@ function OrderDetailsPanel({
               <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl border border-neutral-200 bg-neutral-50 p-1">
                 {WORKFLOW_STEPS.map((step, idx) => {
                   const targetRank = statusRank(step.status);
-                  const done =
-                    rankCurrent >= targetRank &&
-                    order.orderStatus !== "cancelled";
+                  const done = rankCurrent >= targetRank;
                   const isNext =
                     !done &&
                     (idx === 0 ||
@@ -144,6 +148,17 @@ function OrderDetailsPanel({
                   );
                 })}
               </div>
+
+              {undoTarget && (
+                <button
+                  type="button"
+                  onClick={() => onUpdateStatus(order.id, undoTarget.status)}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+                >
+                  <Undo2 className="h-3.5 w-3.5" aria-hidden />
+                  Undo · revert to {undoTarget.label}
+                </button>
+              )}
             </div>
           )}
 
@@ -223,50 +238,56 @@ function OrderDetailsPanel({
             </div>
           </div>
 
-          {order.orderStatus !== "cancelled" &&
-            order.orderStatus !== "completed" && (
-              <div className="border-t border-neutral-200 pt-3">
-                {cancelConfirm ? (
-                  <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4">
-                    <p className="text-sm font-semibold text-red-900">
-                      Cancel order {order.id}?
+          {!isCancelled && (
+            <div className="border-t border-neutral-200 pt-3">
+              {cancelConfirm ? (
+                <div className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-red-900">
+                    Cancel order {order.id}?
+                  </p>
+                  {order.orderStatus === "completed" && (
+                    <p className="text-xs text-red-800">
+                      This order was already marked completed. Cancelling will
+                      move it out of the completed column. Use this for no-shows
+                      or chargebacks discovered after the fact.
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        className="bg-red-600 hover:bg-red-700"
-                        onClick={() => {
-                          onCancelOrder(order.id);
-                          setCancelConfirm(false);
-                        }}
-                      >
-                        Yes, cancel order
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCancelConfirm(false)}
-                      >
-                        Go back
-                      </Button>
-                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={() => {
+                        onCancelOrder(order.id);
+                        setCancelConfirm(false);
+                      }}
+                    >
+                      Yes, cancel order
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCancelConfirm(false)}
+                    >
+                      Go back
+                    </Button>
                   </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-red-300 text-red-700 hover:bg-red-50"
-                    onClick={() => setCancelConfirm(true)}
-                  >
-                    Cancel order
-                  </Button>
-                )}
-              </div>
-            )}
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-red-300 text-red-700 hover:bg-red-50"
+                  onClick={() => setCancelConfirm(true)}
+                >
+                  Cancel order
+                </Button>
+              )}
+            </div>
+          )}
         </section>
       </div>
     </>

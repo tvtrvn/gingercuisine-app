@@ -230,11 +230,37 @@ export async function updateOrder(
 
   const data: Record<string, unknown> = { ...fields };
 
+  // Stamp the new stage and clear any "ahead" stage timestamps so reverse
+  // transitions (e.g. completed → ready, ready → acknowledged) don't leave
+  // misleading "Completed at …" history on a now-active order. `cancelled`
+  // preserves the prior stamps so the audit trail of how far it got is intact.
   const now = new Date();
-  if (fields.orderStatus === "acknowledged") data.acknowledgedAt = now;
-  if (fields.orderStatus === "ready") data.readyAt = now;
-  if (fields.orderStatus === "completed") data.completedAt = now;
-  if (fields.orderStatus === "cancelled") data.cancelledAt = now;
+  switch (fields.orderStatus) {
+    case "new":
+      data.acknowledgedAt = null;
+      data.readyAt = null;
+      data.completedAt = null;
+      data.cancelledAt = null;
+      break;
+    case "acknowledged":
+      data.acknowledgedAt = now;
+      data.readyAt = null;
+      data.completedAt = null;
+      data.cancelledAt = null;
+      break;
+    case "ready":
+      data.readyAt = now;
+      data.completedAt = null;
+      data.cancelledAt = null;
+      break;
+    case "completed":
+      data.completedAt = now;
+      data.cancelledAt = null;
+      break;
+    case "cancelled":
+      data.cancelledAt = now;
+      break;
+  }
 
   try {
     const record = await prisma.order.update({

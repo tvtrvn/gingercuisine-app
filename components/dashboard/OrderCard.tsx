@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CURRENCY } from "@/lib/config";
 import { Order, OrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
-import { Check, ChevronRight } from "lucide-react";
+import { Check, ChevronRight, Undo2 } from "lucide-react";
 import { ElapsedTime } from "./ElapsedTime";
 import { OrderStatusBadge } from "./StatusBadge";
 
@@ -37,6 +37,14 @@ const WORKFLOW_STEPS: { status: OrderStatus; label: string }[] = [
   { status: "completed", label: "Completed" },
 ];
 
+// Reverse-step map for the Undo control. `new` has nothing to undo;
+// `cancelled` is reversed via the explicit "Reopen as new" affordance.
+const UNDO_TARGET: Partial<Record<OrderStatus, { status: OrderStatus; label: string }>> = {
+  acknowledged: { status: "new", label: "New" },
+  ready: { status: "acknowledged", label: "Acknowledged" },
+  completed: { status: "ready", label: "Ready" },
+};
+
 export function OrderCard({
   order,
   isNewUnacknowledged,
@@ -55,8 +63,11 @@ export function OrderCard({
     .find((n) => n && n.length > 0);
 
   const rankCurrent = statusRank(order.orderStatus);
-  const isTerminal =
-    order.orderStatus === "cancelled" || order.orderStatus === "completed";
+  // Only `cancelled` is a hard terminal in the UI now. `completed` still shows
+  // the segmented control (all checked) and the Undo button so staff can
+  // recover from mis-taps.
+  const isCancelled = order.orderStatus === "cancelled";
+  const undoTarget = UNDO_TARGET[order.orderStatus];
 
   return (
     <article
@@ -131,12 +142,11 @@ export function OrderCard({
         </span>
       </div>
 
-      {!isTerminal && (
+      {!isCancelled && (
         <div className="grid grid-cols-3 gap-1 rounded-xl border border-neutral-200 bg-neutral-50 p-1">
           {WORKFLOW_STEPS.map((step, idx) => {
             const targetRank = statusRank(step.status);
-            const done =
-              rankCurrent >= targetRank && order.orderStatus !== "cancelled";
+            const done = rankCurrent >= targetRank;
             const isNext =
               !done &&
               (idx === 0 ||
@@ -167,7 +177,7 @@ export function OrderCard({
         </div>
       )}
 
-      <div className="border-t border-neutral-100 pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-2">
         <button
           type="button"
           onClick={() => onOpenDetails(order)}
@@ -176,6 +186,19 @@ export function OrderCard({
           View details
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />
         </button>
+
+        {undoTarget && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onUpdateStatus(order.id, undoTarget.status)}
+            className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={`Undo: revert order ${order.id} back to ${undoTarget.label}`}
+          >
+            <Undo2 className="h-3.5 w-3.5" aria-hidden />
+            Undo · back to {undoTarget.label}
+          </button>
+        )}
       </div>
     </article>
   );
