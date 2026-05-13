@@ -66,7 +66,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | `DASHBOARD_PASSWORD`                       | Shared staff password for `/dashboard`. Rotate regularly.        |
 | `DASHBOARD_SESSION_SECRET`                 | 32+ char random string for signing the dashboard session cookie. Generate with `openssl rand -hex 32`. |
 | `DASHBOARD_POLL_INTERVAL_MS` (optional)    | Poll interval ms for the dashboard (default 4000).               |
-| `DASHBOARD_HISTORY_WINDOW_HOURS` (optional)| How many hours of completed/cancelled history show on the board (default 48). Older orders are reachable via the search bar. |
+| `DASHBOARD_HISTORY_WINDOW_HOURS` (optional)| How many hours of completed/cancelled history show on the board (default 72). Older orders are reachable via the search bar. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Rate-limiting backend. Optional for local dev, **required for production**. |
 
 ---
@@ -104,11 +104,11 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 
 ---
 
-## Scalability & the 48-hour window
+## Scalability & the 72-hour window
 
 The live `/dashboard` is designed to stay fast and cheap indefinitely:
 
-- **Default view** = every active order (regardless of age) **plus** every completed/cancelled order from the last `DASHBOARD_HISTORY_WINDOW_HOURS` hours (default **48**, i.e. today + yesterday). A stale "acknowledged" order from 3 weeks ago still appears; a completed order from 3 weeks ago does not.
+- **Default view** = every active order (regardless of age) **plus** every completed/cancelled order from the last `DASHBOARD_HISTORY_WINDOW_HOURS` hours (default **72**, i.e. last three days). A stale "acknowledged" order from 3 weeks ago still appears; a completed order from 3 weeks ago does not.
 - **Older orders** are reachable via the **search box** (name, phone, or order #). Search hits the database directly through `/api/dashboard/orders/search`, returns up to 50 matches, bypasses the time window, pauses polling, and swaps the kanban for a flat results view.
 - **Hard server cap** on every list fetch is 500 orders. Even on an unusually busy day with the window bumped to 7 days, the board won't try to render unbounded data.
 - **Rate limits** (in addition to the customer-side ones):

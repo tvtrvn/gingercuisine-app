@@ -26,7 +26,7 @@ export const DASHBOARD_POLL_INTERVAL_MS = Number(
 // Older orders remain reachable via the search bar.
 export const DASHBOARD_HISTORY_WINDOW_HOURS = Math.max(
   1,
-  Number(process.env.DASHBOARD_HISTORY_WINDOW_HOURS ?? "48"),
+  Number(process.env.DASHBOARD_HISTORY_WINDOW_HOURS ?? "72"),
 );
 
 // Messaging shown to customers (single source of truth).
