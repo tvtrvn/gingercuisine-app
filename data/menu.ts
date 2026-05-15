@@ -212,10 +212,10 @@ const NON_MEAT_EGG_VEG_ONLY: AddonOption[] = [
  */
 export const RICE_PLATE_BASE_OPTIONS: SizeOption[] = [
   { id: "base-white-rice", label: "White Rice", priceDelta: 0 },
-  { id: "base-brown-rice", label: "Brown Rice", priceDelta: 0 },
+  { id: "base-brown-rice", label: "Brown Rice", priceDelta: 1.0 },
   { id: "base-mixed-vegetables", label: "Mixed Vegetables", priceDelta: 0 },
-  { id: "base-pad-thai", label: "Pad Thai", priceDelta: 0 },
-  { id: "base-udon", label: "Udon", priceDelta: 0 },
+  { id: "base-pad-thai", label: "Pad Thai", priceDelta: 1.0 },
+  { id: "base-udon", label: "Udon", priceDelta: 1.0 },
   { id: "base-vermicelli", label: "Vermicelli", priceDelta: 0 },
   { id: "base-fried-rice", label: "Fried Rice", priceDelta: 1.0 },
 ];
@@ -941,7 +941,7 @@ export const menuItems: MenuItem[] = ([
     vietnameseName: "Cá Salmon & Gỏi Xoài",
     description:
       "Pan fried salmon & mango salad with jasmine rice, bokchoy, and fish sauce.",
-    price: 20.95,
+    price: 21.95,
     tags: [],
   },
   {
@@ -951,7 +951,7 @@ export const menuItems: MenuItem[] = ([
     vietnameseName: "Cá Salmon Teriyaki & Rau Cải",
     description:
       "Teriyaki salmon & mixed vegetable with jasmine rice and bokchoy.",
-    price: 20.95,
+    price: 21.95,
     tags: [],
   },
   {
@@ -1354,7 +1354,7 @@ export const menuItems: MenuItem[] = ([
     name: "Hot Tea",
     description:
       "House-brewed hot tea. Choose black tea or jasmine green tea.",
-    price: 1.95,
+    price: 2.50,
     tags: ["vegetarian", "vegan"],
     availableFlavors: HOT_TEA_FLAVORS,
   },
