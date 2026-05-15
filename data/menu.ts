@@ -1379,6 +1379,14 @@ export const menuItems: MenuItem[] = ([
     availableFlavors: SOFT_DRINK_FLAVORS,
   },
   {
+    id: "drink-water-bottle",
+    categoryId: "drinks",
+    name: "Water Bottle",
+    description: "Bottled water.",
+    price: 1.5,
+    tags: ["vegetarian", "vegan"],
+  },
+  {
     id: "drink-juice-bottle",
     categoryId: "drinks",
     name: "Juice Bottle",
