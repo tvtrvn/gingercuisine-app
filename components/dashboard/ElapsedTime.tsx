@@ -14,13 +14,21 @@ function formatElapsed(ms: number): string {
 }
 
 export function ElapsedTime({ since }: { since: string }) {
-  const [now, setNow] = useState(() => Date.now());
+  // Initialise as `null` so the SSR pass renders a stable placeholder. If we
+  // seeded with `Date.now()` here, SSR and hydration would run a few ms apart
+  // and any time the formatter straddles a second boundary (e.g. "0s" vs
+  // "1s") React would log a hydration mismatch.
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
 
+  if (now === null) {
+    return <span>just now</span>;
+  }
   const elapsed = now - new Date(since).getTime();
   return <span>{formatElapsed(elapsed)}</span>;
 }

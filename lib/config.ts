@@ -1,6 +1,7 @@
 // Basic configuration values that are easy to change later.
 
 import type { CountryCode } from "libphonenumber-js";
+import { formatRestaurantHoursSummary } from "./hours";
 
 export const RESTAURANT_NAME = process.env.RESTAURANT_NAME || "(RESTAURANT_NAME)";
 export const RESTAURANT_ADDRESS = process.env.RESTAURANT_ADDRESS || "(ADDRESS)";
@@ -8,7 +9,14 @@ export const RESTAURANT_PHONE =
   process.env.NEXT_PUBLIC_RESTAURANT_PHONE ||
   process.env.RESTAURANT_PHONE ||
   "(PHONE)";
-export const RESTAURANT_HOURS = process.env.RESTAURANT_HOURS || "(HOURS)";
+/**
+ * Marketing-copy hours string. Defaults to a summary auto-generated from the
+ * structured schedule in `lib/hours.ts` so the displayed hours and the
+ * order-gate hours can never drift apart. Set `RESTAURANT_HOURS` in `.env` to
+ * override (e.g. to add holiday closure notes).
+ */
+export const RESTAURANT_HOURS =
+  process.env.RESTAURANT_HOURS || formatRestaurantHoursSummary();
 
 export const CURRENCY = "CAD";
 

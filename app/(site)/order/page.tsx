@@ -2,8 +2,10 @@
 
 import { useCart } from "@/components/cart/cart-context";
 import { CartSummary } from "@/components/order/CartSummary";
+import { OrderingAvailabilityBanner } from "@/components/order/OrderingAvailabilityBanner";
 import { PickupForm } from "@/components/order/PickupForm";
 import { RecentOrdersList } from "@/components/order/RecentOrdersList";
+import { useOrderingAvailability } from "@/components/order/useOrderingAvailability";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { menuItems } from "@/data/menu";
@@ -18,6 +20,10 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function OrderPage() {
   const { addItem, checkoutSheetOpen, setCheckoutSheetOpen } = useCart();
+  // Polled in the parent so the banner above the cart and the `PickupForm`'s
+  // disabled state stay in sync. The /api/order POST is the authoritative
+  // gate; this is just for instant UX feedback.
+  const { availability } = useOrderingAvailability();
   const isLg = useMediaQuery("(min-width: 1024px)");
   const [selectedSizeByItem, setSelectedSizeByItem] = useState<
     Record<string, string>
@@ -130,8 +136,9 @@ export default function OrderPage() {
               </IconButton>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pb-8">
+              <OrderingAvailabilityBanner availability={availability} />
               <CartSummary />
-              <PickupForm />
+              <PickupForm availability={availability} />
             </div>
           </div>
         </div>
@@ -157,6 +164,8 @@ export default function OrderPage() {
           </Link>
         </p>
       </header>
+
+      <OrderingAvailabilityBanner availability={availability} />
 
       <RecentOrdersList />
 
@@ -357,7 +366,7 @@ export default function OrderPage() {
         >
           <CartSummary />
           <div className="rounded-2xl border border-neutral-200/80 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <PickupForm />
+            <PickupForm availability={availability} />
           </div>
         </section>
       </div>

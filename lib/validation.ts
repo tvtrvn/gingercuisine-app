@@ -116,6 +116,16 @@ export const dashboardLoginSchema = z.object({
   password: z.string().min(1, "Password is required").max(200),
 });
 
+/**
+ * Body for `POST /api/dashboard/orders/pause`. Staff can toggle the pause
+ * flag on or off, optionally attaching a short reason (shown to customers
+ * on the order page banner).
+ */
+export const orderingPauseUpdateSchema = z.object({
+  paused: z.boolean(),
+  reason: z.string().trim().max(200).optional(),
+});
+
 export type CartSelectionInput = z.infer<typeof cartSelectionSchema>;
 export type OrderRequestInput = z.infer<typeof orderRequestSchema>;
 export type ContactFormInput = z.infer<typeof contactFormSchema>;

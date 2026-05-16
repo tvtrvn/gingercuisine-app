@@ -61,6 +61,7 @@ Customer capabilities:
 - Add item notes.
 - Submit pickup details.
 - Place an order with payment due in person.
+- See a banner with today's open hours (and a collapsible weekly schedule) when online ordering is closed; the submit button is disabled outside hours or while staff have paused ordering.
 
 ### Staff Dashboard
 
@@ -76,6 +77,7 @@ Dashboard capabilities:
 - View complete order details.
 - Mark order as acknowledged, ready, completed, or cancelled.
 - Search older orders by name, phone, or order number.
+- **Pause / resume incoming online orders** from the top bar (e.g. kitchen overload, equipment issue). Pausing opens a short modal where staff can optionally type a customer-facing reason; resuming is a single tap. A full-width status banner is shown across the dashboard whenever ordering is not accepting (paused or outside hours).
 
 ## 6. Key Workflows
 
@@ -142,6 +144,16 @@ Dashboard capabilities:
 - Per-item **notes** may be entered **on each menu/order item card before Add to cart** (`/menu` and Popular dishes on `/order`) **and** edited later in checkout/cart (**CartSummary**) as a fallback.
 - Orders must store status fields for dashboard workflow.
 
+### Ordering Window Requirements
+
+- The system must only accept online orders during the restaurant's published business hours.
+- Hours are stored as a structured per-weekday schedule (`HOURS_SCHEDULE`) interpreted in the restaurant's local timezone (`HOURS_TIMEZONE`, default `America/Toronto`); the marketing `RESTAURANT_HOURS` string is derived from the same schedule so the displayed hours and the gate cannot drift apart.
+- The system must stop accepting new online orders `LAST_ORDER_LEAD_MIN` minutes before close (default 15) so the kitchen has time to complete the last tickets.
+- The system must support a manual staff "pause online ordering" toggle that overrides the hours gate. Pausing may include an optional customer-facing reason string. Resuming is a single action.
+- Customers must see a clear, accessible banner on the order page whenever ordering is not accepting, with today's hours and a collapsible weekly schedule. The submit button must be disabled and labelled appropriately ("Outside ordering hours" or "Ordering paused"). The banner must update without a page reload within ~30 seconds of a staff toggle.
+- `POST /api/order` must enforce the ordering window server-side and return `503` with a customer-facing reason; the client must never be the sole gate.
+- The staff pause flag must always win over the hours gate so the customer-visible message reflects the staff-entered reason.
+
 ### Email Requirements
 
 - Restaurant receives an order email after successful order creation.
@@ -158,6 +170,7 @@ Dashboard capabilities:
 - Repeating **audio** alert while any order remains in `new` (separate from toast logic); stops when none left.
 - Dashboard must keep the main view bounded by showing active orders plus recent history.
 - Older orders must be searchable through the database-backed search endpoint.
+- Dashboard must expose a pause/resume control for online ordering. The pause action requires explicit confirmation; the resume action is single-tap. The pause toggle, the dashboard status banner, and the customer-facing banner must stay in sync within ~30 seconds across multiple devices.
 
 ### Customer Confirmation Requirements
 
@@ -176,6 +189,7 @@ Dashboard capabilities:
 - Session signatures and password comparisons use constant-time comparison.
 - State-changing endpoints require same-origin checks through `Origin` or `Referer`.
 - Rate limiting is handled with Upstash Redis in production (including customer **order status** reads).
+- The staff pause toggle (`POST /api/dashboard/orders/pause`) requires the dashboard session, a same-origin check, and shares the per-session dashboard write rate-limit bucket.
 - Order confirmation requires both `orderId` and a random `viewToken`.
 - Dashboard and dashboard API routes must not be indexed by search engines.
 - Security headers should reduce clickjacking, MIME sniffing, referer leakage, and unnecessary browser permissions.
@@ -193,12 +207,15 @@ Dashboard capabilities:
 
 ### Backend
 
-- Next.js API routes handle orders (including **`GET /api/order/status`** for token-gated, minimal customer tracking), contact form submissions, dashboard login/logout, dashboard order updates, and dashboard search.
+- Next.js API routes handle orders (including **`GET /api/order/status`** for token-gated, minimal customer tracking), contact form submissions, dashboard login/logout, dashboard order updates, dashboard search, the public **`GET /api/order/availability`** snapshot used by the order page banner, and the staff-only **`GET/POST /api/dashboard/orders/pause`** for the pause toggle.
 - `lib/pricing.ts` is the trusted pricing layer.
 - `lib/validation.ts` defines request validation and size limits.
 - `lib/orderStore.ts` is the order persistence layer.
 - `lib/dashboardAuth.ts` and `lib/requireDashboardSession.ts` handle dashboard authentication.
 - `lib/rateLimit.ts` wraps Upstash rate limiting.
+- `lib/hours.ts` parses the structured weekly schedule and evaluates "are we open now?" in the restaurant's local timezone.
+- `lib/restaurantSettings.ts` is a small JSON-string key/value layer over the `RestaurantSetting` collection (currently just the `orderingPause` flag).
+- `lib/orderingStatus.ts` composes hours + staff pause into a single `OrderingAvailability` snapshot used by both the customer banner and the server-side gate.
 
 ### Database
 
@@ -227,6 +244,8 @@ Order records include:
 - `source: "website"`
 - `viewToken`
 - timestamps
+
+A small **`RestaurantSetting`** collection stores restaurant-wide runtime toggles as a unique `key` plus a JSON-encoded `value`. The only active key today is `orderingPause`, whose payload is `{ paused: boolean, reason?: string, pausedAt?: string }`. The schema is intentionally generic so new toggles (holiday banners, prep-time overrides, etc.) can be added without further migrations.
 
 ## 11. Non-Functional Requirements
 
@@ -269,6 +288,8 @@ Production deployment requires:
 - Older order search works without loading all historical orders into the board.
 - The confirmation page shows the `PICKUP_READY_NOTICE` to the customer when the order resolves with a valid view token.
 - Menu item options match current restaurant rules.
+- Online orders submitted outside business hours, after the last-order cutoff, or while staff have paused ordering are rejected with a `503` and a customer-facing reason — both server-side and via the disabled submit button.
+- Staff can pause and resume online ordering from `/dashboard` in one tap, optionally attaching a customer-visible reason; the customer order page reflects the change within ~30 seconds without a reload.
 - Production build succeeds.
 
 ## 14. Known Constraints
@@ -285,6 +306,5 @@ Production deployment requires:
 - Admin menu editor.
 - Push notifications or SMS for staff.
 - Customer SMS/email confirmation.
-- Scheduled order cutoffs based on restaurant hours.
 - Atlas Search for large-scale order history search.
 - Multi-location support if the restaurant expands.

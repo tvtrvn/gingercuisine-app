@@ -4,6 +4,7 @@ import {
   DASHBOARD_POLL_INTERVAL_MS,
   RESTAURANT_NAME,
 } from "@/lib/config";
+import { getOrderingAvailability } from "@/lib/orderingStatus";
 import { listRecentAndActive } from "@/lib/orderStore";
 import { hasDashboardSession } from "@/lib/requireDashboardSession";
 import { redirect } from "next/navigation";
@@ -15,10 +16,16 @@ export default async function DashboardHome() {
     redirect("/dashboard/login");
   }
 
-  const orders = await listRecentAndActive({
-    windowHours: DASHBOARD_HISTORY_WINDOW_HOURS,
-    limit: 500,
-  });
+  // Run both reads in parallel — the dashboard load is the slowest page in
+  // the app and these two queries are independent. Availability is a single
+  // doc lookup so it's effectively free.
+  const [orders, availability] = await Promise.all([
+    listRecentAndActive({
+      windowHours: DASHBOARD_HISTORY_WINDOW_HOURS,
+      limit: 500,
+    }),
+    getOrderingAvailability(),
+  ]);
 
   return (
     <OrderBoard
@@ -26,6 +33,14 @@ export default async function DashboardHome() {
       pollIntervalMs={DASHBOARD_POLL_INTERVAL_MS}
       historyWindowHours={DASHBOARD_HISTORY_WINDOW_HOURS}
       restaurantName={RESTAURANT_NAME}
+      initialAvailability={{
+        accepting: availability.accepting,
+        reason: availability.reason,
+        message: availability.message,
+        staffPaused: availability.staffPaused,
+        staffPauseReason: availability.staffPauseReason,
+        staffPausedAt: availability.staffPausedAt,
+      }}
     />
   );
 }

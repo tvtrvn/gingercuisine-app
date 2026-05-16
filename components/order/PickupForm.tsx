@@ -13,6 +13,7 @@ import { orderRequestSchema } from "@/lib/validation";
 import type { CountryCode } from "libphonenumber-js";
 import { AsYouType } from "libphonenumber-js/min";
 import { FormEvent, useMemo, useState } from "react";
+import type { OrderingAvailabilityResponse } from "./useOrderingAvailability";
 
 const PICKUP_START_TIME = "11:30";
 const PICKUP_END_TIME = "22:45";
@@ -35,10 +36,25 @@ function formatDigitsForDisplay(digits: string, region: CountryCode): string {
 
 interface PickupFormProps {
   onOrderCreated?: (orderId: string) => void;
+  /**
+   * Current ordering availability snapshot. When `accepting === false`, the
+   * submit button is disabled and the form shows the closure reason inline.
+   * Passing `null` (initial load) keeps the form interactive — the server
+   * still enforces hours via `/api/order`.
+   */
+  availability?: OrderingAvailabilityResponse | null;
 }
 
-export function PickupForm({ onOrderCreated }: PickupFormProps) {
+export function PickupForm({
+  onOrderCreated,
+  availability,
+}: PickupFormProps) {
   const { items, clearCart } = useCart();
+  const isAcceptingOrders = availability ? availability.accepting : true;
+  const closedMessage =
+    availability && !availability.accepting
+      ? availability.message ?? "We're not accepting online orders right now."
+      : null;
   const [name, setName] = useState("");
   /** National digits only; display is derived (see phoneDisplayValue). */
   const [phoneDigits, setPhoneDigits] = useState("");
@@ -67,6 +83,13 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
     event.preventDefault();
     setFormError(null);
     setFieldErrors({});
+
+    if (!isAcceptingOrders) {
+      setFormError(
+        closedMessage ?? "We're not accepting online orders right now.",
+      );
+      return;
+    }
 
     const selections = items.map((item) => ({
       menuItemId: item.menuItemId,
@@ -119,6 +142,23 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
         body: JSON.stringify(parsed.data),
       });
       if (!res.ok) {
+        // 503 from the server means hours/pause closed the window between
+        // the page render and the submit. Surface the server message instead
+        // of the generic error so customers see why.
+        if (res.status === 503) {
+          let serverMessage: string | null = null;
+          try {
+            const data = (await res.json()) as { error?: string };
+            if (typeof data?.error === "string") serverMessage = data.error;
+          } catch {
+            // ignore
+          }
+          setFormError(
+            serverMessage ??
+              "We're not accepting online orders right now. Please try again later.",
+          );
+          return;
+        }
         throw new Error("Failed to place order.");
       }
       const data = await res.json();
@@ -150,10 +190,26 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-5"
+      aria-disabled={!isAcceptingOrders || undefined}
+    >
       <h2 className="text-base font-semibold tracking-tight text-neutral-900">
         Pickup details
       </h2>
+      {closedMessage && (
+        <p
+          className={`rounded-xl border px-3 py-2 text-sm ${
+            availability?.reason === "paused"
+              ? "border-amber-300 bg-amber-50 text-amber-950"
+              : "border-red-200 bg-red-50 text-red-900"
+          }`}
+          role="status"
+        >
+          {closedMessage}
+        </p>
+      )}
       {formError && (
         <p
           className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
@@ -290,9 +346,13 @@ export function PickupForm({ onOrderCreated }: PickupFormProps) {
         size="lg"
         className="w-full"
         loading={isSubmitting}
-        disabled={items.length === 0}
+        disabled={items.length === 0 || !isAcceptingOrders}
       >
-        Place pickup order
+        {isAcceptingOrders
+          ? "Place pickup order"
+          : availability?.reason === "paused"
+            ? "Ordering paused"
+            : "Outside ordering hours"}
       </Button>
     </form>
   );

@@ -62,3 +62,16 @@ model Order {
   @@index([pickupName])
   @@index([pickupPhone])
 }
+
+// Key/value store for restaurant-wide runtime toggles that the dashboard can
+// flip without a code deploy. Currently holds the "pause online ordering"
+// flag, but more keys can be added (e.g. "holiday_message").
+//
+// `value` is JSON-encoded so we can change the shape per-key without
+// migrating MongoDB documents.
+model RestaurantSetting {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -15,7 +15,7 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 - Browse menu, add items to cart (with sizes, flavors, add-ons). **Optional per-line notes** are on each item card on **`/menu`** and in **Popular dishes on `/order`** **before** Add to cart (e.g. *no cilantro*); you can still tweak notes in checkout (**CartSummary**) or split lines with **Add another with different notes**. Lines with identical choices **merge qty** unless the line already has notes — **add the same dish with different modifiers** via a second cart line.
 - **Rice plates** and four specialty plates (Chicken & Shrimp Pad Thai; Chicken & Beef Teriyaki Udon; Lemongrass Tofu with Pad Thai; Curry Tofu with Brown Rice) include a mutually-exclusive **Base** as the **Size** row: White Rice, Brown Rice, Mixed Vegetables, Pad Thai, Udon, Vermicelli, or Fried Rice (**+$1**).
 - Fill pickup details (**phone** validated/formatted via `libphonenumber-js` with default region `NEXT_PUBLIC_PHONE_DEFAULT_REGION`, default `CA`; stored as **E.164** in MongoDB).
-- Place a **pay-in-person** order.
+- Place a **pay-in-person** order. The order page only accepts submissions **inside the restaurant's published hours** and while staff have not manually paused ordering; outside that window a banner with today's hours and a collapsible weekly schedule is shown and the submit button is disabled. The window is enforced server-side in `/api/order` (503 + reason) so the client can never bypass it.
 - Receive an order confirmation URL (`/order/confirmation?orderId=&token=`). The **confirmation page doubles as live order tracking**: a **3-step timeline** (**Placed → Acknowledged → Ready**) and **`OrderStatusTracker` polls `/api/order/status` every ~10s** while the tab is visible (free, serverless-safe, no SMS/email to customers). Staff-internal “completed” stays off the tracker; customers see **“Order ready for pickup”** instead of a picked-up step.
 
 > Payment is **always collected in person** at the restaurant at pickup. There is no online payment step.
@@ -34,6 +34,7 @@ Modern, mobile-first website for a family Vietnamese restaurant.
 - Kanban columns: **New → Acknowledged → Ready → Completed**, plus **Cancelled**.
 - Each order card shows customer, pickup time, full item list, totals, payment status, and elapsed time.
 - Staff can acknowledge, mark ready, complete, or cancel orders. They still enter the order into the existing POS by hand — there is no in-app POS toggle.
+- **Pause / resume incoming online orders** from the top bar. Pausing opens a short modal where staff can optionally type a customer-facing reason (e.g. *"Kitchen catching up — back in 20 min"*); resuming is a single tap. A full-width amber banner spans the top of the dashboard while ordering is paused or outside hours, and the change propagates to customer-facing pages and other tablets within ~30s.
 
 ---
 
@@ -54,7 +55,11 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | Var                                        | What it does                                                     |
 | ------------------------------------------ | ---------------------------------------------------------------- |
 | `NEXT_PUBLIC_SITE_URL`                     | Base URL for the site.                                           |
-| `RESTAURANT_NAME` / `RESTAURANT_ADDRESS` / `RESTAURANT_PHONE` / `RESTAURANT_HOURS` | Branding. |
+| `RESTAURANT_NAME` / `RESTAURANT_ADDRESS` / `RESTAURANT_PHONE` | Branding. |
+| `RESTAURANT_HOURS` (optional)              | Free-form marketing hours string shown in the footer / location page. **When unset, derived automatically from `HOURS_SCHEDULE`** so the displayed hours and the order-gate cannot drift apart. Override to add holiday notes. |
+| `HOURS_TIMEZONE` (optional)                | IANA timezone the schedule is interpreted in (default `America/Toronto`). |
+| `HOURS_SCHEDULE` (optional)                | Weekly schedule, Monday→Sunday, comma-separated; each entry is `HH:MM-HH:MM` (24h) or `closed`. Default: `11:00-23:00` every day. The order page banner, the submit button, and `POST /api/order` all use this. |
+| `LAST_ORDER_LEAD_MIN` (optional)           | Stop accepting new online orders this many minutes **before** close (default `15`) so the kitchen can finish the last tickets. Set `0` for a literal cutoff at close. |
 | `NEXT_PUBLIC_RESTAURANT_PHONE`             | Phone number shown publicly.                                     |
 | `NEXT_PUBLIC_PHONE_DEFAULT_REGION` (optional)| Default ISO country code for parsing typed phone numbers (e.g. `CA`). See `PHONE_DEFAULT_REGION` in `lib/config.ts`. |
 | `TAX_RATE`                                 | Tax multiplier (e.g. `0.13` for 13% HST).                        |
@@ -73,8 +78,9 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 
 ## Ordering & data flow
 
+0. Before checkout even renders the submit button, `/order` calls **`GET /api/order/availability`** (also polled every 30s + on focus) to learn whether ordering is currently accepting. When it isn't, the page shows a banner with today's hours / pause reason and disables the submit button.
 1. Customer places order on `/order` → client POSTs a list of **selection references** (`menuItemId`, `quantity`, `selectedSizeId`, `selectedAddonIds`, `selectedFlavorId`, `notes`) to `POST /api/order`. **Prices and names are not sent from the client** — they are recomputed on the server.
-2. `POST /api/order` validates with Zod, calls `priceCart()`… It then assigns a **`orderCode`** of **six Crockford-base32 chars** (~32⁶ combos, easy to give over the phone — e.g. `K7XD9A`) with three collision retries on Mongo unique-key races, plus a **`viewToken` (128-bit hex)** that **actually protects confidentiality** against guessing strangers' orders).
+2. `POST /api/order` runs the ordering-window gate first (`lib/orderingStatus.ts` — staff pause + hours, restaurant TZ, last-order lead minutes). Closed/paused windows short-circuit with **`503`** and a customer-facing reason. If we're accepting, it validates with Zod, calls `priceCart()`… It then assigns a **`orderCode`** of **six Crockford-base32 chars** (~32⁶ combos, easy to give over the phone — e.g. `K7XD9A`) with three collision retries on Mongo unique-key races, plus a **`viewToken` (128-bit hex)** that **actually protects confidentiality** against guessing strangers' orders).
 3. Restaurant receives a Resend email with the full order (no Stripe references).
 4. Customer is redirected to `/order/confirmation?orderId=…&token=…`. Detailed line items render only when **`token`** matches the stored **`viewToken`** (constant-time compare). The same page shows **`PICKUP_READY_NOTICE`**, a **live status timeline**, and a client **poll of `GET /api/order/status` every ~10s** (while the tab is visible) — no SMS/email/Push to customers.
 5. **`localStorage` key `gc_recent_orders`** (max 5 listings, 24h retention) remembers recent `{ orderId, token }` pairs on the **`/order`** page so customers can reopen their tracking link without an account.
@@ -90,7 +96,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | Brute-force dashboard login    | Upstash rate limit: **5 attempts / min / IP** on `/api/dashboard/login`. |
 | Flood of junk customer orders  | Upstash rate limit: **10 orders / min / IP** on `/api/order`. |
 | Contact-form spam              | Upstash rate limit: **5 submissions / 10 min / IP** on `/api/contact`. |
-| Runaway dashboard API calls    | Upstash rate limit: **60 writes / min / session** on `/api/dashboard/orders/:id`. |
+| Runaway dashboard API calls    | Upstash rate limit: **60 writes / min / session** on `/api/dashboard/orders/:id` and on `/api/dashboard/orders/pause` (staff pause toggle — auth + same-origin + same per-session bucket). |
 | Spamming public order status   | Upstash rate limit: **60 reads / min / IP** on `/api/order/status` (`orderId` + `viewToken` query still required — wrong pair → 404). |
 | Client-forged prices           | Server recomputes every line from `data/menu.ts`; unknown items / sizes / add-ons / flavors are rejected with a 400. |
 | Oversized carts / inputs       | Zod caps: 50 cart lines, 25 qty/line, 20 add-ons/line, 80-char name, 30-char phone, 120-char email, 200-char password, 300-char notes. |
@@ -175,29 +181,31 @@ app/
     page.tsx                 kanban board
     login/page.tsx + LoginForm.tsx
   api/
-    order/route.ts           POST new pay-in-person order (server-priced, rate-limited)
-    order/status/route.ts    GET minimal order status for tracking (token + rate limit)
-    contact/route.ts         POST contact form (rate-limited)
-    cron/heartbeat/route.ts  GET weekly Mongo ping (Vercel Cron + CRON_SECRET)
+    order/route.ts                POST new pay-in-person order (server-priced, hours/pause-gated, rate-limited)
+    order/status/route.ts         GET minimal order status for tracking (token + rate limit)
+    order/availability/route.ts   GET public ordering availability (hours + pause snapshot)
+    contact/route.ts              POST contact form (rate-limited)
+    cron/heartbeat/route.ts       GET weekly Mongo ping (Vercel Cron + CRON_SECRET)
     dashboard/
-      login/route.ts         POST password → signed cookie (rate-limited)
+      login/route.ts              POST password → signed cookie (rate-limited)
       logout/route.ts
-      orders/route.ts        GET recent-and-active orders (windowHours, limit, session-authed)
-      orders/[orderId]/route.ts  GET + PATCH status (rate-limited)
-      orders/search/route.ts GET older orders by name/phone/# (rate-limited)
+      orders/route.ts             GET recent-and-active orders (windowHours, limit, session-authed)
+      orders/[orderId]/route.ts   GET + PATCH status (rate-limited)
+      orders/search/route.ts      GET older orders by name/phone/# (rate-limited)
+      orders/pause/route.ts       GET availability + POST toggle to pause/resume online ordering
 
 components/
   cart/ (context, floating cart)
   layout/ (nav, footer, sticky button)
-  order/ (cart summary, pickup form, confirmation tracking, recent orders)
+  order/ (cart summary, pickup form, confirmation tracking, recent orders, OrderingAvailabilityBanner, useOrderingAvailability)
   about/VideoEmbed.tsx           Vimeo embed facade (scroll-to-play muted / tap-to-play) for `/about`
-  dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, useNewOrderAlarm, StatusBadge, ElapsedTime, DashboardTopBar)
+  dashboard/ (OrderBoard, OrderCard, OrderDetailsDrawer, NewOrderToast, useNewOrderAlarm, StatusBadge, ElapsedTime, DashboardTopBar, PauseOrdersControl + OrderingStatusBanner)
   ui/
 
 lib/
-  config.ts                  env-backed config (tax, polling, etc.)
+  config.ts                  env-backed config (tax, polling, etc.; RESTAURANT_HOURS now defaults to formatted summary of hours.ts)
   types.ts                   shared TS types
-  validation.ts              Zod schemas (with max caps)
+  validation.ts              Zod schemas (with max caps; includes orderingPauseUpdateSchema)
   pricing.ts                 trusted server-side cart pricing
   prisma.ts                  Prisma client
   orderStore.ts              createOrder / getOrderById / listOrders / updateOrder
@@ -209,10 +217,13 @@ lib/
   requireDashboardSession.ts auth guards for server components + API routes
   requireSameOrigin.ts       CSRF / same-origin helper for state-changing endpoints
   rateLimit.ts               Upstash Ratelimit wrapper (graceful no-op if unconfigured)
+  hours.ts                   structured weekly schedule + "are we open now?" in restaurant TZ
+  restaurantSettings.ts      JSON key/value store for restaurant-wide toggles (e.g. orderingPause)
+  orderingStatus.ts          composes hours + staff pause into one OrderingAvailability snapshot
   utils.ts                   cn(), formatCurrency()
 
 prisma/
-  schema.prisma              Order model (includes viewToken)
+  schema.prisma              Order model (includes viewToken) + RestaurantSetting key/value model
 
 data/
   menu.ts                    menu data — the source of truth for item prices

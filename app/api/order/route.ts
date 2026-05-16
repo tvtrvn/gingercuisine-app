@@ -1,5 +1,6 @@
 import { sendOrderEmail } from "@/lib/email";
 import { generateOrderCode } from "@/lib/orderCode";
+import { getOrderingAvailability } from "@/lib/orderingStatus";
 import { createOrder } from "@/lib/orderStore";
 import { PricingError, priceCart } from "@/lib/pricing";
 import {
@@ -32,6 +33,26 @@ export async function POST(req: NextRequest) {
           "Retry-After": String(retryAfterSeconds(rl.reset)),
         },
       },
+    );
+  }
+
+  // Authoritative ordering gate: closed hours AND the staff pause toggle.
+  // Doing this before parsing/pricing keeps closed-time POSTs cheap, and
+  // before the same-origin error (which already ran above) ensures the
+  // browser sees a clear 503 + message so we can show it inline. We still
+  // rely on this check even though the client also has a banner — never
+  // trust the client to enforce business hours.
+  const availability = await getOrderingAvailability();
+  if (!availability.accepting) {
+    return NextResponse.json(
+      {
+        error:
+          availability.message ??
+          "We're not accepting online orders right now.",
+        reason: availability.reason ?? "closed",
+        availability,
+      },
+      { status: 503 },
     );
   }
 

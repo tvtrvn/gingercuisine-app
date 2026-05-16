@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { cn } from "@/lib/utils";
 import { LogOut, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { PauseOrdersControl } from "./PauseOrdersControl";
+
+interface InitialAvailability {
+  accepting: boolean;
+  reason?: string;
+  message?: string;
+  staffPaused: boolean;
+  staffPauseReason?: string;
+  staffPausedAt?: string;
+}
 
 export function DashboardTopBar({
   restaurantName,
@@ -16,10 +26,12 @@ export function DashboardTopBar({
   onToggleSound,
   needsGesture,
   newCount,
+  initialAvailability,
 }: {
   restaurantName: string;
   counts: { new: number; acknowledged: number; ready: number };
-  lastFetchAt: string;
+  /** `null` until the first poll lands — keeps SSR/CSR markup identical. */
+  lastFetchAt: string | null;
   isFetching: boolean;
   fetchError: string | null;
   onRefresh: () => void;
@@ -27,6 +39,7 @@ export function DashboardTopBar({
   onToggleSound: () => void;
   needsGesture: boolean;
   newCount: number;
+  initialAvailability: InitialAvailability;
 }) {
   async function handleLogout() {
     await fetch("/api/dashboard/logout", { method: "POST" });
@@ -76,6 +89,7 @@ export function DashboardTopBar({
             >
               Refresh
             </Button>
+            <PauseOrdersControl initialAvailability={initialAvailability} />
             <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
               <span className="inline-flex items-center gap-1.5">
                 <LogOut className="h-3.5 w-3.5" aria-hidden />
@@ -126,9 +140,13 @@ export function DashboardTopBar({
           />
           <span>
             Last sync{" "}
-            <time dateTime={lastFetchAt}>
-              {new Date(lastFetchAt).toLocaleTimeString()}
-            </time>
+            {lastFetchAt ? (
+              <time dateTime={lastFetchAt}>
+                {new Date(lastFetchAt).toLocaleTimeString()}
+              </time>
+            ) : (
+              <span aria-live="polite">—</span>
+            )}
           </span>
           {fetchError && (
             <span className="font-medium text-red-600">{fetchError}</span>

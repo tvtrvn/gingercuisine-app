@@ -10,6 +10,7 @@ import { DashboardTopBar } from "./DashboardTopBar";
 import { NewOrderToast } from "./NewOrderToast";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailsDrawer } from "./OrderDetailsDrawer";
+import { OrderingStatusBanner } from "./PauseOrdersControl";
 import { useNewOrderAlarm } from "./useNewOrderAlarm";
 
 type SortMode = "newest" | "oldest" | "pickup";
@@ -48,11 +49,21 @@ const COLUMN_DEFS: {
   },
 ];
 
+interface InitialAvailability {
+  accepting: boolean;
+  reason?: string;
+  message?: string;
+  staffPaused: boolean;
+  staffPauseReason?: string;
+  staffPausedAt?: string;
+}
+
 interface OrderBoardProps {
   initialOrders: Order[];
   pollIntervalMs: number;
   historyWindowHours: number;
   restaurantName: string;
+  initialAvailability: InitialAvailability;
 }
 
 export function OrderBoard({
@@ -60,6 +71,7 @@ export function OrderBoard({
   pollIntervalMs,
   historyWindowHours,
   restaurantName,
+  initialAvailability,
 }: OrderBoardProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [scope, setScope] = useState<ScopeMode>("active");
@@ -69,9 +81,11 @@ export function OrderBoard({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [toastOrder, setToastOrder] = useState<Order | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [lastFetchAt, setLastFetchAt] = useState<string>(
-    new Date().toISOString(),
-  );
+  // `null` until the first poll lands. Initialising with `new Date()` here
+  // would run on both the SSR pass and the hydration pass with a few
+  // milliseconds between them and trigger a hydration mismatch on
+  // `<time dateTime>` in the top bar. The fetch below populates it on mount.
+  const [lastFetchAt, setLastFetchAt] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [soundMuted, setSoundMuted] = useState(false);
@@ -133,6 +147,10 @@ export function OrderBoard({
 
   useEffect(() => {
     if (isSearchMode) return;
+    // Kick an immediate fetch so the "Last sync" indicator (and any orders
+    // placed between SSR and mount) populate within a few ms instead of
+    // waiting a full poll interval.
+    void fetchOrders();
     const id = setInterval(fetchOrders, pollIntervalMs);
     const onFocus = () => fetchOrders();
     window.addEventListener("focus", onFocus);
@@ -310,6 +328,7 @@ export function OrderBoard({
 
   return (
     <div className="space-y-0">
+      <OrderingStatusBanner initialAvailability={initialAvailability} />
       <DashboardTopBar
         restaurantName={restaurantName}
         counts={{
@@ -325,6 +344,7 @@ export function OrderBoard({
         onToggleSound={() => setSoundMuted((m) => !m)}
         needsGesture={needsGesture}
         newCount={newCount}
+        initialAvailability={initialAvailability}
       />
 
       <div className="space-y-4 px-4 py-4 md:px-6 md:py-6">
