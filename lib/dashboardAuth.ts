@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 
 export const DASHBOARD_COOKIE_NAME = "gc_dashboard_session";
 // 12 hours; staff can re-auth at the start of a shift.
@@ -58,13 +58,10 @@ export function verifyDashboardPassword(submitted: string): boolean {
     console.error("DASHBOARD_PASSWORD is not set. Login blocked.");
     return false;
   }
-  if (submitted.length !== expected.length) return false;
-  try {
-    return timingSafeEqual(
-      Buffer.from(submitted),
-      Buffer.from(expected),
-    );
-  } catch {
-    return false;
-  }
+  // Hash both sides to a fixed-length digest before constant-time compare so
+  // the password length is not leaked via timing (the previous early-return
+  // on `submitted.length !== expected.length` was the leak).
+  const submittedHash = createHash("sha256").update(submitted).digest();
+  const expectedHash = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(submittedHash, expectedHash);
 }

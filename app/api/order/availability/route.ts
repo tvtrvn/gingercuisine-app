@@ -24,12 +24,13 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[/api/order/availability]", error);
-    // Fail open so a DB hiccup doesn't block the whole storefront. The
-    // server-side enforcement in /api/order will still bounce orders that
-    // arrive while we're truly closed.
+    // Fail closed: if we can't read availability we surface "not accepting"
+    // so customers see the degraded banner and don't compose orders that
+    // /api/order would later reject. The submit-side enforcement still
+    // exists as a backstop.
     return NextResponse.json(
       {
-        accepting: true,
+        accepting: false,
         staffPaused: false,
         hours: null,
         serverTime: new Date().toISOString(),

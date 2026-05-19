@@ -1,5 +1,10 @@
 import { DASHBOARD_HISTORY_WINDOW_HOURS } from "@/lib/config";
 import { listRecentAndActive } from "@/lib/orderStore";
+import {
+  dashboardRateLimitKey,
+  dashboardReadRateLimit,
+  retryAfterSeconds,
+} from "@/lib/rateLimit";
 import { requireDashboardApi } from "@/lib/requireDashboardSession";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -25,6 +30,17 @@ function parseLimit(raw: string | null): number {
 export async function GET(req: NextRequest) {
   const unauthorized = await requireDashboardApi();
   if (unauthorized) return unauthorized;
+
+  const rl = await dashboardReadRateLimit.limit(await dashboardRateLimitKey(req));
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds(rl.reset)) },
+      },
+    );
+  }
 
   const { searchParams } = new URL(req.url);
   const windowHours = parseWindowHours(searchParams.get("windowHours"));

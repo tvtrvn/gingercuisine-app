@@ -1,6 +1,9 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { createHash } from "crypto";
+import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
+import { DASHBOARD_COOKIE_NAME } from "./dashboardAuth";
 
 /**
  * Rate limiting via Upstash Redis + Upstash Ratelimit.
@@ -68,6 +71,17 @@ function makeLimiter(factory: LimiterFactory) {
       const redis = getRedis();
       if (!redis) {
         warnOnce();
+        // Fail closed in production so a missing Upstash config can't
+        // silently disable every limiter on a deployed instance. Local
+        // dev keeps the no-op behavior.
+        if (process.env.NODE_ENV === "production") {
+          return {
+            success: false,
+            limit: 0,
+            remaining: 0,
+            reset: Date.now() + 60_000,
+          };
+        }
         return {
           success: true,
           limit: Number.POSITIVE_INFINITY,
@@ -127,6 +141,18 @@ export const dashboardWriteRateLimit = makeLimiter((redis) =>
   }),
 );
 
+// Per-staff-session cap on dashboard reads (board polling + single-order
+// detail GETs). Generous, but bounded so a hijacked or XSS-pulled cookie
+// can't scrape the entire order history in a tight loop.
+export const dashboardReadRateLimit = makeLimiter((redis) =>
+  new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(120, "1 m"),
+    analytics: true,
+    prefix: "rl:dash-read",
+  }),
+);
+
 // Per-staff-session cap on dashboard searches. Search hits the DB harder
 // than a normal board fetch (it may scan older history), so cap it lower.
 export const dashboardSearchRateLimit = makeLimiter((redis) =>
@@ -166,4 +192,20 @@ export function getClientIp(req: NextRequest): string {
 
 export function retryAfterSeconds(resetMs: number): number {
   return Math.max(1, Math.ceil((resetMs - Date.now()) / 1000));
+}
+
+/**
+ * Build a rate-limit key for a dashboard request. Prefers a hash of the
+ * session cookie so a whole restaurant behind one NAT doesn't share a single
+ * IP bucket; falls back to IP when the cookie isn't present yet (e.g. login).
+ * The cookie value is never logged or stored — only a 16-byte hex prefix of
+ * its sha256 hash is used as the key.
+ */
+export async function dashboardRateLimitKey(req: NextRequest): Promise<string> {
+  const store = await cookies();
+  const session = store.get(DASHBOARD_COOKIE_NAME)?.value;
+  if (session) {
+    return `sess:${createHash("sha256").update(session).digest("hex").slice(0, 32)}`;
+  }
+  return `ip:${getClientIp(req)}`;
 }

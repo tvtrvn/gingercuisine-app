@@ -97,6 +97,10 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | Flood of junk customer orders  | Upstash rate limit: **10 orders / min / IP** on `/api/order`. |
 | Contact-form spam              | Upstash rate limit: **5 submissions / 10 min / IP** on `/api/contact`. |
 | Runaway dashboard API calls    | Upstash rate limit: **60 writes / min / session** on `/api/dashboard/orders/:id` and on `/api/dashboard/orders/pause` (staff pause toggle — auth + same-origin + same per-session bucket). |
+| Hijacked dashboard session scraping orders | Upstash rate limit: **120 reads / min / session** on `GET /api/dashboard/orders` and `GET /api/dashboard/orders/:id` via the shared `dashboardRateLimitKey` (cookie-hash key, not IP). |
+| Brute-force passcode via timing | `verifyDashboardPassword` sha256-hashes both sides to fixed-length digests before constant-time compare, so password length is not observable via response timing. |
+| SMTP header / subject injection via contact + order emails | `sanitizeOneLine` / `sanitizeMultiLine` strip CR/LF from every user-supplied string before it reaches the Resend payload. |
+| Storefront silently accepts orders during DB outage | `/api/order/availability` fail-closed: catch-block returns `accepting: false` with `degraded: true`. |
 | Spamming public order status   | Upstash rate limit: **60 reads / min / IP** on `/api/order/status` (`orderId` + `viewToken` query still required — wrong pair → 404). |
 | Client-forged prices           | Server recomputes every line from `data/menu.ts`; unknown items / sizes / add-ons / flavors are rejected with a 400. |
 | Oversized carts / inputs       | Zod caps: 50 cart lines, 25 qty/line, 20 add-ons/line, 80-char name, 30-char phone, 120-char email, 200-char password, 300-char notes. |
@@ -106,7 +110,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | Dashboard indexed by search engines | `/dashboard` and `/api/dashboard` get `X-Robots-Tag: noindex, nofollow, noarchive` + `no-store`. |
 | Dashboard timing attacks       | `timingSafeEqual` on both password check and session signature verify. |
 
-> **Rate limiting degrades gracefully:** if `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are missing, limiters log a one-time warning and allow all requests. Fine for first-boot local dev; **never leave this unset in production**.
+> **Rate limiting fails closed in production.** If `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are missing in `NODE_ENV=production`, every rate-limited endpoint returns `429 Too Many Requests` — a misconfigured deploy is loudly broken rather than silently unprotected. In dev (`NODE_ENV !== "production"`) limiters still no-op with the same one-time boot warning.
 
 ---
 

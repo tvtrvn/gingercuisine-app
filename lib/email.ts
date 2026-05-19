@@ -22,6 +22,19 @@ const resendContactFromEmail =
 
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
+// Strip CR/LF so user-supplied strings can't break out of a header line
+// (e.g. inject a fake `Subject:` or extra `To:` via Resend) and collapse
+// whitespace. Use on anything that ends up in a single-line context.
+function sanitizeOneLine(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").trim();
+}
+
+// Normalize line endings for multi-line body fields. We keep newlines, but
+// never raw CR which can confuse downstream parsers.
+function sanitizeMultiLine(value: string): string {
+  return value.replace(/\r\n?/g, "\n").trim();
+}
+
 // Sends an email to the restaurant when a new order is placed.
 export async function sendOrderEmail(order: Order) {
   if (!resend) {
@@ -35,19 +48,24 @@ export async function sendOrderEmail(order: Order) {
     .map((item) => {
       const unitPrice = item.unitPrice ?? item.price;
       const flavorText = item.selectedFlavor
-        ? ` [Flavor: ${item.selectedFlavor.name}]`
+        ? ` [Flavor: ${sanitizeOneLine(item.selectedFlavor.name)}]`
         : "";
       const sizeText = item.selectedSize
-        ? ` [Size: ${item.selectedSize.label}]`
+        ? ` [Size: ${sanitizeOneLine(item.selectedSize.label)}]`
         : "";
       const addonsText =
         item.selectedAddons && item.selectedAddons.length > 0
           ? ` [Add-ons: ${item.selectedAddons
-              .map((addon) => `${addon.name} (+$${addon.price.toFixed(2)})`)
+              .map(
+                (addon) =>
+                  `${sanitizeOneLine(addon.name)} (+$${addon.price.toFixed(2)})`,
+              )
               .join(", ")}]`
           : "";
-      const notesText = item.notes ? ` [Notes: ${item.notes}]` : "";
-      return `- ${item.quantity} x ${item.name} ($${unitPrice.toFixed(2)})${flavorText}${sizeText}${addonsText}${notesText}`;
+      const notesText = item.notes
+        ? ` [Notes: ${sanitizeOneLine(item.notes)}]`
+        : "";
+      return `- ${item.quantity} x ${sanitizeOneLine(item.name)} ($${unitPrice.toFixed(2)})${flavorText}${sizeText}${addonsText}${notesText}`;
     })
     .join("\n");
 
@@ -57,12 +75,12 @@ export async function sendOrderEmail(order: Order) {
     `Order ID: ${order.id}`,
     `Placed: ${order.createdAt}`,
     ``,
-    `Customer: ${order.pickupDetails.name}`,
-    `Phone: ${order.pickupDetails.phone}`,
+    `Customer: ${sanitizeOneLine(order.pickupDetails.name)}`,
+    `Phone: ${sanitizeOneLine(order.pickupDetails.phone)}`,
     order.pickupDetails.email
-      ? `Email: ${order.pickupDetails.email}`
+      ? `Email: ${sanitizeOneLine(order.pickupDetails.email)}`
       : undefined,
-    `Pickup: ${order.pickupDetails.pickupTimeOption === "asap" ? "ASAP" : order.pickupDetails.pickupTime || "later today"}`,
+    `Pickup: ${order.pickupDetails.pickupTimeOption === "asap" ? "ASAP" : sanitizeOneLine(order.pickupDetails.pickupTime || "later today")}`,
     ``,
     `Items:`,
     itemsText,
@@ -95,20 +113,21 @@ export async function sendContactEmail(input: ContactFormInput) {
     return;
   }
 
+  const safeName = sanitizeOneLine(input.name);
   const body = [
     `New contact form submission for ${RESTAURANT_NAME}`,
     ``,
-    `Name: ${input.name}`,
-    `Email: ${input.email}`,
+    `Name: ${safeName}`,
+    `Email: ${sanitizeOneLine(input.email)}`,
     ``,
     `Message:`,
-    input.message,
+    sanitizeMultiLine(input.message),
   ].join("\n");
 
   await resend.emails.send({
     from: `${RESTAURANT_NAME} Website <${resendContactFromEmail}>`,
     to: CONTACT_EMAIL,
-    subject: `New contact form message from ${input.name}`,
+    subject: `New contact form message from ${safeName}`,
     text: body,
   });
 }

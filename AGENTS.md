@@ -1,43 +1,7 @@
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
+# Agent Instructions
 
-This project is indexed by GitNexus as **gingercuisine-app** (1043 symbols, 1707 relationships, 49 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project's agent guidance lives in [CLAUDE.md](CLAUDE.md).
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+`AGENTS.md` is kept as a tool-agnostic pointer so agents that look here (Codex, AGENTS.md-aware tools) find the same instructions as Claude Code. Do not duplicate content — edit `CLAUDE.md` only.
 
-## Always Do
-
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
-
-## Never Do
-
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
-
-## Resources
-
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/gingercuisine-app/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/gingercuisine-app/clusters` | All functional areas |
-| `gitnexus://repo/gingercuisine-app/processes` | All execution flows |
-| `gitnexus://repo/gingercuisine-app/process/{name}` | Step-by-step execution trace |
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-<!-- gitnexus:end -->
+> Re-index command: `npx gitnexus analyze --force --skip-agents-md` (the `--skip-agents-md` flag preserves this stub by skipping the gitnexus block in both `AGENTS.md` and `CLAUDE.md`). If you run plain `npx gitnexus analyze`, the duplicate body returns to this file — delete everything between (and including) the `<!-- gitnexus:start -->` / `<!-- gitnexus:end -->` markers to restore the pointer.

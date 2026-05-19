@@ -1,15 +1,13 @@
-import { createHash } from "node:crypto";
-import { DASHBOARD_COOKIE_NAME } from "@/lib/dashboardAuth";
 import { getOrderById, updateOrder } from "@/lib/orderStore";
 import {
+  dashboardRateLimitKey,
+  dashboardReadRateLimit,
   dashboardWriteRateLimit,
-  getClientIp,
   retryAfterSeconds,
 } from "@/lib/rateLimit";
 import { requireDashboardApi } from "@/lib/requireDashboardSession";
 import { isSameOrigin } from "@/lib/requireSameOrigin";
 import { orderUpdateSchema } from "@/lib/validation";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -18,9 +16,20 @@ interface RouteParams {
   params: Promise<{ orderId: string }>;
 }
 
-export async function GET(_req: NextRequest, { params }: RouteParams) {
+export async function GET(req: NextRequest, { params }: RouteParams) {
   const unauthorized = await requireDashboardApi();
   if (unauthorized) return unauthorized;
+
+  const rl = await dashboardReadRateLimit.limit(await dashboardRateLimitKey(req));
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds(rl.reset)) },
+      },
+    );
+  }
 
   const { orderId } = await params;
   const order = await getOrderById(orderId);
@@ -37,16 +46,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const unauthorized = await requireDashboardApi();
   if (unauthorized) return unauthorized;
 
-  // Rate-limit per staff session rather than per IP: a whole restaurant
-  // often sits behind one NAT, and we don't want tablets to starve each
-  // other. We hash the cookie so we never log or store the raw token.
-  const cookieStore = await cookies();
-  const session = cookieStore.get(DASHBOARD_COOKIE_NAME)?.value ?? "";
-  const sessionKey = session
-    ? `sess:${createHash("sha256").update(session).digest("hex").slice(0, 32)}`
-    : `ip:${getClientIp(req)}`;
-
-  const rl = await dashboardWriteRateLimit.limit(sessionKey);
+  const rl = await dashboardWriteRateLimit.limit(
+    await dashboardRateLimitKey(req),
+  );
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many updates in a short time. Slow down a bit." },
