@@ -8,14 +8,13 @@ export function CartSummary() {
   const {
     items,
     subtotal,
+    tax,
+    total,
     updateItemQuantity,
     updateItemNotes,
     removeItem,
     duplicateItem,
   } = useCart();
-
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
 
   if (items.length === 0) {
     return (

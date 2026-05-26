@@ -1,5 +1,7 @@
 "use client";
 
+import { computeCartTotals, computeUnitPrice } from "@/lib/pricing";
+import { TAX_RATE } from "@/lib/config";
 import type { AddonOption, CartItem, MenuItem, SizeOption } from "@/lib/types";
 import {
     createContext,
@@ -28,6 +30,8 @@ interface CartContextValue {
   duplicateItem: (id: string) => void;
   clearCart: () => void;
   subtotal: number;
+  tax: number;
+  total: number;
   itemCount: number;
   lastAddedMessage: string | null;
   /** Mobile /order full checkout sheet (controlled by FloatingCart + Order page) */
@@ -61,13 +65,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
         availableSizes[0];
       const selectedAddons = options?.selectedAddons ?? [];
       const selectedFlavor = options?.selectedFlavor;
-      const addonsTotal = selectedAddons.reduce(
-        (sum, addon) => sum + addon.price,
-        0,
-      );
-      const flavorPrice = selectedFlavor?.price ?? 0;
-      const unitPrice = Number(
-        (menuItem.price + (fallbackSize?.priceDelta ?? 0) + addonsTotal + flavorPrice).toFixed(2),
+      const unitPrice = computeUnitPrice(
+        menuItem,
+        fallbackSize,
+        selectedAddons,
+        selectedFlavor,
       );
       const lineSignature = JSON.stringify({
         menuItemId: menuItem.id,
@@ -174,12 +176,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems([]);
   }, []);
 
-  const subtotal = useMemo(
-    () =>
-      items.reduce(
-        (sum, item) => sum + (item.unitPrice ?? item.price) * item.quantity,
-        0,
-      ),
+  const { subtotal, tax, total } = useMemo(
+    () => computeCartTotals(items, TAX_RATE),
     [items],
   );
   const itemCount = useMemo(
@@ -196,6 +194,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     duplicateItem,
     clearCart,
     subtotal,
+    tax,
+    total,
     itemCount,
     lastAddedMessage,
     checkoutSheetOpen,

@@ -17,6 +17,7 @@ import {
   MenuItem,
   SizeOption,
 } from "@/lib/types";
+import { computeUnitPrice } from "@/lib/pricing";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ShoppingCart } from "lucide-react";
 import Image from "next/image";
@@ -76,16 +77,6 @@ export default function MenuPage() {
     return item.availableAddons.filter((addon) =>
       selectedAddonIds.includes(addon.id),
     );
-  }
-
-  function getDisplayPrice(item: MenuItem) {
-    const sizeDelta = getSelectedSize(item)?.priceDelta ?? 0;
-    const addonTotal = getSelectedAddons(item).reduce(
-      (sum, addon) => sum + addon.price,
-      0,
-    );
-    const flavorPrice = getSelectedFlavor(item)?.price ?? 0;
-    return item.price + sizeDelta + addonTotal + flavorPrice;
   }
 
   function handleAddToCart(item: MenuItem) {
@@ -268,7 +259,7 @@ export default function MenuPage() {
                             )}
                           </div>
                           <p className="shrink-0 text-base font-semibold tabular-nums text-neutral-900">
-                            {formatCurrency(getDisplayPrice(item))}
+                            {formatCurrency(computeUnitPrice(item, getSelectedSize(item), getSelectedAddons(item), getSelectedFlavor(item)))}
                           </p>
                         </div>
                         <p className="text-xs leading-relaxed text-neutral-600 sm:text-sm">

@@ -1,6 +1,12 @@
 import { menuItems } from "@/data/menu";
 import { TAX_RATE } from "./config";
-import type { AddonOption, CartItem, MenuItem, SizeOption } from "./types";
+import type {
+  AddonOption,
+  CartItem,
+  MenuItem,
+  OrderTotals,
+  SizeOption,
+} from "./types";
 
 export class PricingError extends Error {
   constructor(message: string) {
@@ -11,6 +17,45 @@ export class PricingError extends Error {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/**
+ * Compute the unit price for a single configured menu line.
+ * Pure function — same inputs always produce the same output.
+ * This is the single source of truth: display path, cart reducer, and
+ * server-side `priceCart` all delegate here so the customer never sees a
+ * price that disagrees with the server total.
+ */
+export function computeUnitPrice(
+  menuItem: MenuItem,
+  selectedSize?: SizeOption,
+  selectedAddons?: AddonOption[],
+  selectedFlavor?: AddonOption,
+): number {
+  const sizeDelta = selectedSize?.priceDelta ?? 0;
+  const addonsTotal = (selectedAddons ?? []).reduce(
+    (sum, a) => sum + a.price,
+    0,
+  );
+  const flavorPrice = selectedFlavor?.price ?? 0;
+  return round2(menuItem.price + sizeDelta + addonsTotal + flavorPrice);
+}
+
+/**
+ * Compute subtotal / tax / total from a list of already-priced cart lines.
+ * Pure function — does not look up menu data. Caller is responsible for
+ * having computed `unitPrice` via `computeUnitPrice` first.
+ */
+export function computeCartTotals(
+  items: ReadonlyArray<{ unitPrice: number; quantity: number }>,
+  taxRate: number,
+): OrderTotals {
+  const subtotal = round2(
+    items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
+  );
+  const tax = round2(subtotal * taxRate);
+  const total = round2(subtotal + tax);
+  return { subtotal, tax, total };
 }
 
 const menuById = new Map<string, MenuItem>(
@@ -103,12 +148,7 @@ export function priceCart(selections: CartSelectionInput[]): PricedOrder {
       }
     }
 
-    const sizeDelta = size?.priceDelta ?? 0;
-    const addonsTotal = addons.reduce((sum, a) => sum + a.price, 0);
-    const flavorPrice = flavor?.price ?? 0;
-    const unitPrice = round2(
-      menuItem.price + sizeDelta + addonsTotal + flavorPrice,
-    );
+    const unitPrice = computeUnitPrice(menuItem, size, addons, flavor);
 
     const priced: PricedCartItem = {
       id: `${menuItem.id}-${idx}`,
@@ -126,11 +166,5 @@ export function priceCart(selections: CartSelectionInput[]): PricedOrder {
     return priced;
   });
 
-  const subtotal = round2(
-    items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
-  );
-  const tax = round2(subtotal * TAX_RATE);
-  const total = round2(subtotal + tax);
-
-  return { items, subtotal, tax, total };
+  return { items, ...computeCartTotals(items, TAX_RATE) };
 }

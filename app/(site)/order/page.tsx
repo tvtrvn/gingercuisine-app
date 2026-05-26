@@ -12,6 +12,7 @@ import { menuItems } from "@/data/menu";
 import { PRICES_NOTICE } from "@/lib/config";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { AddonOption, MenuItem, SizeOption } from "@/lib/types";
+import { computeUnitPrice } from "@/lib/pricing";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ShoppingCart, X } from "lucide-react";
 import Image from "next/image";
@@ -62,16 +63,6 @@ export default function OrderPage() {
     if (!item.availableFlavors || item.availableFlavors.length === 0) return undefined;
     const flavorId = selectedFlavorByItem[item.id] || item.availableFlavors[0].id;
     return item.availableFlavors.find((f) => f.id === flavorId);
-  }
-
-  function getDisplayPrice(item: MenuItem) {
-    const sizeDelta = getSelectedSize(item)?.priceDelta ?? 0;
-    const addonsTotal = getSelectedAddons(item).reduce(
-      (sum, addon) => sum + addon.price,
-      0,
-    );
-    const flavorPrice = getSelectedFlavor(item)?.price ?? 0;
-    return item.price + sizeDelta + addonsTotal + flavorPrice;
   }
 
   function handleAddToCart(item: MenuItem) {
@@ -220,7 +211,7 @@ export default function OrderPage() {
                         </p>
                       </div>
                       <p className="shrink-0 text-sm font-semibold tabular-nums text-neutral-900">
-                        {formatCurrency(getDisplayPrice(item))}
+                        {formatCurrency(computeUnitPrice(item, getSelectedSize(item), getSelectedAddons(item), getSelectedFlavor(item)))}
                       </p>
                     </div>
                     {item.availableSizes && item.availableSizes.length > 0 && (
