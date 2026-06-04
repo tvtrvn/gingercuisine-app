@@ -278,7 +278,7 @@ npm start             # next start
 ```json
 {
   "crons": [
-    { "path": "/api/cron/heartbeat", "schedule": "0 9 * * 1" }
+    { "path": "/api/cron/heartbeat", "schedule": "0 12 * * 1" }
   ]
 }
 ```
@@ -471,7 +471,7 @@ const redis = await pingRedis();
 
 Once a week, Vercel hits this with `Authorization: Bearer <CRON_SECRET>`. `timingEqual()` does constant-time comparison. The Mongo ping is authoritative: on failure, log and return 500 — Vercel surfaces failed crons in the dashboard so the operator notices. The Redis ping (`pingRedis()` in `lib/rateLimit.ts`, which reuses the shared Upstash client) is best-effort — the request itself is the keepalive traffic, so a transient Redis error is reported in the response but never fails the heartbeat. On success the route returns `{ ok: true, ts, mongo: "ok", redis }`.
 
-Why Monday 9am UTC: it's safely outside Toronto restaurant peak hours (which are late afternoon / evening local time).
+Why Monday 12:00 UTC (early morning in Toronto): it's safely outside restaurant peak hours (which are late afternoon / evening local time).
 
 ### 7.16 `instrumentation.ts` — boot warnings
 
