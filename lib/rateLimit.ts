@@ -51,6 +51,30 @@ function getRedis(): Redis | null {
   return _redis;
 }
 
+/**
+ * Best-effort Redis health ping. Reuses the shared singleton and sends a
+ * trivial `PING` so the Upstash free-tier instance keeps seeing traffic and
+ * doesn't get archived for inactivity. Called by the weekly cron heartbeat.
+ *
+ * Never throws — returns a status object so the heartbeat can stay best-effort.
+ * `skipped: true` means Upstash isn't configured (local dev), so there's
+ * nothing to ping.
+ */
+export async function pingRedis(): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  error?: string;
+}> {
+  const redis = getRedis();
+  if (!redis) return { ok: false, skipped: true };
+  try {
+    await redis.ping();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 let warnedAboutMissingConfig = false;
 function warnOnce() {
   if (warnedAboutMissingConfig) return;

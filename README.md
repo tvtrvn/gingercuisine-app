@@ -67,7 +67,7 @@ Open <http://localhost:3000> for the customer site and <http://localhost:3000/da
 | `RESTAURANT_ORDER_EMAIL`                   | Who receives new order notifications.                            |
 | `RESTAURANT_CONTACT_EMAIL` / `NEXT_PUBLIC_RESTAURANT_CONTACT_EMAIL` | Contact form inbox.                      |
 | `DATABASE_URL`                             | MongoDB connection string.                                       |
-| `CRON_SECRET`                              | Secret for the weekly Vercel Cron that pings Mongo (see below). `openssl rand -hex 32`. **Required in production** so the Atlas M0 free tier does not auto-pause. |
+| `CRON_SECRET`                              | Secret for the weekly Vercel Cron that pings Mongo **and** Upstash Redis (see below). `openssl rand -hex 32`. **Required in production** so the Atlas M0 and Upstash free tiers do not auto-pause/archive for inactivity. |
 | `DASHBOARD_PASSWORD`                       | Shared staff password for `/dashboard`. Rotate regularly.        |
 | `DASHBOARD_SESSION_SECRET`                 | 32+ char random string for signing the dashboard session cookie. Generate with `openssl rand -hex 32`. |
 | `DASHBOARD_POLL_INTERVAL_MS` (optional)    | Poll interval ms for the dashboard (default 4000).               |
@@ -189,7 +189,7 @@ app/
     order/status/route.ts         GET minimal order status for tracking (token + rate limit)
     order/availability/route.ts   GET public ordering availability (hours + pause snapshot)
     contact/route.ts              POST contact form (rate-limited)
-    cron/heartbeat/route.ts       GET weekly Mongo ping (Vercel Cron + CRON_SECRET)
+    cron/heartbeat/route.ts       GET weekly Mongo + Redis ping (Vercel Cron + CRON_SECRET)
     dashboard/
       login/route.ts              POST password → signed cookie (rate-limited)
       logout/route.ts
@@ -245,10 +245,11 @@ data/
 4. Set **all** env vars from `.env.example` in **Vercel → Project → Settings → Environment Variables**, for both Production and Preview.
 5. Deploy.
 
-### Keeping the free MongoDB cluster alive
+### Keeping the free MongoDB and Upstash tiers alive
 
-MongoDB Atlas **M0 (free) clusters** can auto-pause after about **30 days of no connections**. This app includes a [Vercel Cron](https://vercel.com/docs/cron-jobs) that runs every **Monday at 12:00 UTC** and calls `GET /api/cron/heartbeat`, which runs a `ping` against the database. That keeps a minimal connection even when the site is quiet (pre-launch, closed for vacation, etc.).
+Both free tiers go dormant when idle: MongoDB Atlas **M0 (free) clusters** can auto-pause after about **30 days of no connections**, and the **Upstash Redis free tier** archives databases that receive no traffic for a few weeks. This app includes a [Vercel Cron](https://vercel.com/docs/cron-jobs) that runs every **Monday at 12:00 UTC** and calls `GET /api/cron/heartbeat`, which `ping`s **both** the database (via Prisma) and the Upstash Redis rate-limit instance. That keeps minimal traffic on each even when the site is quiet (pre-launch, closed for vacation, etc.).
 
+- The Mongo ping is authoritative: if it fails the route returns **500**. The Redis ping is best-effort — the request itself is the keepalive traffic, so a transient Redis error is reported in the JSON response but never fails the heartbeat. If Upstash env vars are absent the Redis result is `{ ok: false, skipped: true }`.
 - Add **`CRON_SECRET`** in Vercel (Production) — a long random string; generate with `openssl rand -hex 32`. Vercel automatically sends it as `Authorization: Bearer <CRON_SECRET>` to cron invocations.
 - The route returns **401** without a valid Bearer token (browsers cannot hit it by accident).
 - After deploy, open **Vercel → your project → Settings → Cron Jobs** and confirm `/api/cron/heartbeat` is listed; you can use **Run** to test without waiting for Monday.

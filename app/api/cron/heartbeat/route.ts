@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { pingRedis } from "@/lib/rateLimit";
 import { timingSafeEqual } from "node:crypto";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -11,8 +12,14 @@ function timingEqual(a: string, b: string): boolean {
 }
 
 /**
- * Weekly Vercel Cron hits this route to run a trivial MongoDB `ping` so
- * Atlas M0 does not auto-pause after 30 days of inactivity.
+ * Weekly Vercel Cron hits this route to run a trivial `ping` against both
+ * MongoDB (so Atlas M0 does not auto-pause after 30 days of inactivity) and
+ * the Upstash Redis rate-limit instance (so its free tier isn't archived for
+ * inactivity during quiet weeks).
+ *
+ * MongoDB is the authoritative keepalive: if its ping fails we return 500.
+ * The Redis ping is best-effort — the HTTP attempt itself is the keepalive
+ * traffic, so a Redis hiccup is reported but never fails the route.
  *
  * Set `CRON_SECRET` in Vercel: cron sends `Authorization: Bearer <secret>`.
  * @see https://vercel.com/docs/cron-jobs/usage-and-pricing#cron-secret
@@ -37,9 +44,12 @@ export async function GET(request: NextRequest) {
 
   try {
     await prisma.$runCommandRaw({ ping: 1 });
+    const redis = await pingRedis();
     const ts = new Date().toISOString();
-    console.log(`[cron/heartbeat] MongoDB ping ok at ${ts}`);
-    return NextResponse.json({ ok: true, ts });
+    console.log(
+      `[cron/heartbeat] MongoDB ping ok at ${ts}; Redis ${JSON.stringify(redis)}`,
+    );
+    return NextResponse.json({ ok: true, ts, mongo: "ok", redis });
   } catch (err) {
     console.error("[cron/heartbeat] MongoDB ping failed:", err);
     return NextResponse.json(

@@ -22,7 +22,7 @@ Defensive features that make this *production*:
 - **CSRF via same-origin check** on every mutating POST.
 - **Server-side cart re-pricing** — the client's `price` / `unitPrice` fields are *ignored*; menu data is the source of truth.
 - **Hardened HTTP headers** declared in `next.config.ts` / `vercel.json` (HSTS preload, X-Frame-Options DENY, nosniff, Permissions-Policy).
-- **Weekly MongoDB heartbeat cron** so Atlas M0 doesn't auto-pause from inactivity.
+- **Weekly heartbeat cron** that pings MongoDB and Upstash Redis so neither free tier auto-pauses/archives from inactivity.
 
 ---
 
@@ -169,7 +169,7 @@ gingercuisine-app/
 │       ├── order/availability/route.ts    # GET: open/closed
 │       ├── order/status/route.ts          # GET: poll a single order (token-gated)
 │       ├── contact/route.ts               # POST: contact form
-│       ├── cron/heartbeat/route.ts        # GET (Bearer): Mongo ping
+│       ├── cron/heartbeat/route.ts        # GET (Bearer): Mongo + Redis ping
 │       └── dashboard/
 │           ├── login/route.ts             # POST: password → cookie
 │           ├── logout/route.ts            # POST
@@ -283,7 +283,7 @@ npm start             # next start
 }
 ```
 
-Every Monday at 09:00 UTC, Vercel hits `/api/cron/heartbeat` with `Authorization: Bearer <CRON_SECRET>`. The route runs a trivial Mongo `ping` so Atlas M0 doesn't auto-pause after 30 days idle. The token check uses `timingSafeEqual` so an attacker can't brute-force it via timing.
+Every Monday, Vercel hits `/api/cron/heartbeat` with `Authorization: Bearer <CRON_SECRET>`. The route runs a trivial Mongo `ping` (so Atlas M0 doesn't auto-pause after 30 days idle) and a Redis `ping` (so the Upstash free tier isn't archived after a few weeks idle). The token check uses `timingSafeEqual` so an attacker can't brute-force it via timing.
 
 ### MongoDB Atlas
 
@@ -462,13 +462,14 @@ Singleton context exposing `items`, `subtotal`, `itemCount`, `addItem`, `updateI
 
 Cart math runs client-side too for *display only*; the server re-prices on submit. So the customer sees a UI total while typing, but the dollars that get charged are computed authoritatively.
 
-### 7.15 `app/api/cron/heartbeat/route.ts` — keeping Atlas awake
+### 7.15 `app/api/cron/heartbeat/route.ts` — keeping Atlas + Upstash awake
 
 ```ts
 await prisma.$runCommandRaw({ ping: 1 });
+const redis = await pingRedis();
 ```
 
-Once a week, Vercel hits this with `Authorization: Bearer <CRON_SECRET>`. `timingEqual()` does constant-time comparison. On success, log and return `{ ok: true, ts }`. On Mongo ping failure, log and return 500 — Vercel surfaces failed crons in the dashboard so the operator notices.
+Once a week, Vercel hits this with `Authorization: Bearer <CRON_SECRET>`. `timingEqual()` does constant-time comparison. The Mongo ping is authoritative: on failure, log and return 500 — Vercel surfaces failed crons in the dashboard so the operator notices. The Redis ping (`pingRedis()` in `lib/rateLimit.ts`, which reuses the shared Upstash client) is best-effort — the request itself is the keepalive traffic, so a transient Redis error is reported in the response but never fails the heartbeat. On success the route returns `{ ok: true, ts, mongo: "ok", redis }`.
 
 Why Monday 9am UTC: it's safely outside Toronto restaurant peak hours (which are late afternoon / evening local time).
 
@@ -683,7 +684,7 @@ iPad                         Next.js                       MongoDB
 
 **View token (`viewToken`):** A 128-bit random base64url string stored per order. Required to view the confirmation page. Without it, knowing an order code alone is useless — defeats enumeration.
 
-**Vercel Cron:** Vercel's built-in cron scheduler. Hits a configured route on a schedule with a Bearer token (`CRON_SECRET`). Used here for the weekly Mongo heartbeat.
+**Vercel Cron:** Vercel's built-in cron scheduler. Hits a configured route on a schedule with a Bearer token (`CRON_SECRET`). Used here for the weekly Mongo + Redis heartbeat.
 
 **Upstash Redis:** A serverless Redis. Used for sliding-window rate limits across Vercel's many serverless instances (an in-process limiter would each-instance-allow N requests; the Redis store coordinates).
 
