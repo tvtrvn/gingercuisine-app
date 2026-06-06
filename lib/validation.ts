@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { PHONE_DEFAULT_REGION } from "./config";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import type { MenuCategoryId } from "./types";
 
 const PICKUP_START_TIME = "11:30";
 const PICKUP_END_TIME = "22:45";
@@ -126,7 +127,138 @@ export const orderingPauseUpdateSchema = z.object({
   reason: z.string().trim().max(200).optional(),
 });
 
+// ---- Owner menu management ----
+
+// Kept in sync with the `MenuCategoryId` union in lib/types.ts. The `satisfies`
+// check fails to compile if any id here isn't a real category.
+const MENU_CATEGORY_IDS = [
+  "pho",
+  "tom-yum",
+  "banh-mi",
+  "rice-plates",
+  "mango-salad",
+  "vermicelli",
+  "appetizers",
+  "specialty-plates",
+  "salmon-fried-fish",
+  "sides",
+  "drinks",
+  "starter-soups",
+  "desserts",
+] as const satisfies readonly MenuCategoryId[];
+
+const MAX_MENU_NAME = 120;
+const MAX_MENU_DESC = 600;
+const MAX_OPTIONS_PER_GROUP = 30;
+
+const money = z.number().nonnegative().max(10_000);
+const optionId = z.string().trim().min(1).max(80);
+
+const addonOptionSchema = z.object({
+  id: optionId,
+  name: z.string().trim().min(1).max(80),
+  price: money,
+  soldOut: z.boolean().optional(),
+});
+
+const sizeOptionSchema = z.object({
+  id: optionId,
+  label: z.string().trim().min(1).max(80),
+  priceDelta: money,
+  soldOut: z.boolean().optional(),
+});
+
+function hasUniqueIds(arr: ReadonlyArray<{ id: string }>): boolean {
+  return new Set(arr.map((o) => o.id)).size === arr.length;
+}
+
+/** A full owner-created menu item (no `id` — the store assigns a `custom-` id). */
+export const customItemSchema = z
+  .object({
+    name: z.string().trim().min(1).max(MAX_MENU_NAME),
+    vietnameseName: z.string().trim().max(MAX_MENU_NAME).optional(),
+    categoryId: z.enum(MENU_CATEGORY_IDS),
+    description: z.string().trim().max(MAX_MENU_DESC),
+    price: money,
+    available: z.boolean().optional(),
+    image: z.string().trim().url().max(500).optional(),
+    tags: z.array(z.enum(["spicy", "vegetarian", "vegan"])).max(3).optional(),
+    isFeatured: z.boolean().optional(),
+    availableAddons: z
+      .array(addonOptionSchema)
+      .max(MAX_OPTIONS_PER_GROUP)
+      .optional(),
+    availableSizes: z
+      .array(sizeOptionSchema)
+      .max(MAX_OPTIONS_PER_GROUP)
+      .optional(),
+    defaultSizeId: optionId.optional(),
+    availableFlavors: z
+      .array(addonOptionSchema)
+      .max(MAX_OPTIONS_PER_GROUP)
+      .optional(),
+  })
+  .superRefine((v, ctx) => {
+    for (const [key, arr] of [
+      ["availableAddons", v.availableAddons],
+      ["availableSizes", v.availableSizes],
+      ["availableFlavors", v.availableFlavors],
+    ] as const) {
+      if (arr && !hasUniqueIds(arr)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: "Option ids must be unique.",
+        });
+      }
+    }
+    if (
+      v.defaultSizeId &&
+      !(v.availableSizes ?? []).some((s) => s.id === v.defaultSizeId)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["defaultSizeId"],
+        message: "Default size must be one of the available sizes.",
+      });
+    }
+  });
+
+/** Owner edits to a base catalog item. At least one field must be present. */
+export const overridePatchSchema = z
+  .object({
+    available: z.boolean().optional(),
+    price: money.optional(),
+    name: z.string().trim().min(1).max(MAX_MENU_NAME).optional(),
+    description: z.string().trim().max(MAX_MENU_DESC).optional(),
+    soldOutOptionIds: z.array(optionId).max(100).optional(),
+  })
+  .refine((v) => Object.values(v).some((x) => x !== undefined), {
+    message: "No override fields provided.",
+  });
+
+/** PATCH body for /api/dashboard/menu: override a base item OR edit a custom one. */
+export const menuPatchSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("override"),
+    itemId: z.string().trim().min(1).max(120),
+    patch: overridePatchSchema,
+  }),
+  z.object({
+    kind: z.literal("customEdit"),
+    itemId: z.string().trim().min(1).max(120),
+    patch: customItemSchema,
+  }),
+]);
+
+export const menuDeleteSchema = z.object({
+  itemId: z.string().trim().min(1).max(120),
+});
+
 export type CartSelectionInput = z.infer<typeof cartSelectionSchema>;
 export type OrderRequestInput = z.infer<typeof orderRequestSchema>;
 export type ContactFormInput = z.infer<typeof contactFormSchema>;
 export type OrderUpdateInput = z.infer<typeof orderUpdateSchema>;
+export type CustomItemInput = z.infer<typeof customItemSchema>;
+export type OverridePatchInput = z.infer<typeof overridePatchSchema>;
+export type MenuPatchInput = z.infer<typeof menuPatchSchema>;

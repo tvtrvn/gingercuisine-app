@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { cn } from "@/lib/utils";
-import { LogOut, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { LogOut, RefreshCw, UtensilsCrossed, Volume2, VolumeX } from "lucide-react";
+import Link from "next/link";
 import { PauseOrdersControl } from "./PauseOrdersControl";
 
 interface InitialAvailability {
@@ -88,6 +89,14 @@ export function DashboardTopBar({
               }
             >
               Refresh
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/menu">
+                <span className="inline-flex items-center gap-1.5">
+                  <UtensilsCrossed className="h-3.5 w-3.5" aria-hidden />
+                  Menu
+                </span>
+              </Link>
             </Button>
             <PauseOrdersControl initialAvailability={initialAvailability} />
             <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
