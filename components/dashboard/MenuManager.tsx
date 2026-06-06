@@ -13,7 +13,13 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { menuCategories } from "@/data/menu";
 import type { MenuAuditEntry } from "@/lib/menuStore";
-import type { AddonOption, DietaryTag, MenuItem, SizeOption } from "@/lib/types";
+import type {
+  AddonOption,
+  DietaryTag,
+  MenuCategoryId,
+  MenuItem,
+  SizeOption,
+} from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 const DIETARY_TAGS: DietaryTag[] = ["spicy", "vegetarian", "vegan"];
@@ -537,6 +543,7 @@ export function MenuManager({
   const [items, setItems] = useState<MenuItem[]>(initialItems);
   const [audit, setAudit] = useState<MenuAuditEntry[]>(initialAudit);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<MenuCategoryId | "all">("all");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [overrideId, setOverrideId] = useState<string | null>(null);
@@ -561,14 +568,16 @@ export function MenuManager({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (i) =>
+    return items.filter((i) => {
+      if (category !== "all" && i.categoryId !== category) return false;
+      if (!q) return true;
+      return (
         i.name.toLowerCase().includes(q) ||
         i.vietnameseName?.toLowerCase().includes(q) ||
-        (categoryLabel.get(i.categoryId) ?? "").toLowerCase().includes(q),
-    );
-  }, [items, search]);
+        (categoryLabel.get(i.categoryId) ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [items, search, category]);
 
   async function addItem(fields: Omit<MenuItem, "id">) {
     await mutate("POST", fields);
@@ -636,14 +645,32 @@ export function MenuManager({
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="w-full max-w-xs">
-          <Input
-            type="search"
-            placeholder="Search items…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex w-full max-w-md flex-wrap items-end gap-3">
+          <div className="min-w-[10rem] flex-1">
+            <Input
+              type="search"
+              placeholder="Search items…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="min-w-[10rem] flex-1">
+            <Select
+              aria-label="Filter by category"
+              value={category}
+              onChange={(e) =>
+                setCategory(e.target.value as MenuCategoryId | "all")
+              }
+            >
+              <option value="all">All categories</option>
+              {menuCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
         {!adding && (
           <Button
