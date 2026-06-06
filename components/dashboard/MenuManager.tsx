@@ -285,7 +285,12 @@ function ItemForm({ initial, onCancel, onSubmit }: ItemFormProps) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input
+            label="Name"
+            data-testid="form-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
           <Input
             label="Vietnamese name (optional)"
             value={vietnameseName}
@@ -293,6 +298,7 @@ function ItemForm({ initial, onCancel, onSubmit }: ItemFormProps) {
           />
           <Select
             label="Category"
+            data-testid="form-category"
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value as MenuItem["categoryId"])}
           >
@@ -304,6 +310,7 @@ function ItemForm({ initial, onCancel, onSubmit }: ItemFormProps) {
           </Select>
           <Input
             label="Price"
+            data-testid="form-price"
             type="number"
             step="0.01"
             min="0"
@@ -401,7 +408,13 @@ function ItemForm({ initial, onCancel, onSubmit }: ItemFormProps) {
           <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button type="button" size="sm" loading={saving} onClick={() => void handleSubmit()}>
+          <Button
+            type="button"
+            size="sm"
+            data-testid="form-submit"
+            loading={saving}
+            onClick={() => void handleSubmit()}
+          >
             {initial ? "Save changes" : "Add item"}
           </Button>
         </div>
@@ -466,9 +479,15 @@ function BaseOverridePanel({
   return (
     <div className="space-y-3 border-t border-neutral-100 bg-neutral-50/60 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input
+          label="Name"
+          data-testid="ov-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
         <Input
           label="Price"
+          data-testid="ov-price"
           type="number"
           step="0.01"
           min="0"
@@ -483,7 +502,12 @@ function BaseOverridePanel({
         onChange={(e) => setDescription(e.target.value)}
       />
       <label className="flex items-center gap-2 text-sm text-neutral-700">
-        <input type="checkbox" checked={!available} onChange={(e) => setAvailable(!e.target.checked)} />
+        <input
+          type="checkbox"
+          data-testid="ov-soldout"
+          checked={!available}
+          onChange={(e) => setAvailable(!e.target.checked)}
+        />
         Sold out (whole item)
       </label>
 
@@ -521,7 +545,13 @@ function BaseOverridePanel({
         <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
-        <Button type="button" size="sm" loading={saving} onClick={() => void handleSave()}>
+        <Button
+          type="button"
+          size="sm"
+          data-testid="ov-save"
+          loading={saving}
+          onClick={() => void handleSave()}
+        >
           Save
         </Button>
       </div>
@@ -697,7 +727,7 @@ export function MenuManager({
           const custom = isCustom(item);
           const soldOut = item.available === false;
           return (
-            <Card key={item.id} className="overflow-hidden">
+            <Card key={item.id} data-testid={`row-${item.id}`} className="overflow-hidden">
               {editingId === item.id ? (
                 <CardBody>
                   <ItemForm
@@ -746,6 +776,7 @@ export function MenuManager({
                             type="button"
                             size="sm"
                             variant="ghost"
+                            aria-label="Delete item"
                             onClick={() => void deleteCustom(item)}
                           >
                             <Trash2 className="h-4 w-4 text-red-600" aria-hidden />

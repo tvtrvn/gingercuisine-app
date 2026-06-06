@@ -249,7 +249,11 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                 {items.map((item) => {
                   const itemSoldOut = item.available === false;
                   return (
-                  <Card key={item.id} className="overflow-hidden">
+                  <Card
+                    key={item.id}
+                    data-testid={`menu-card-${item.id}`}
+                    className="overflow-hidden"
+                  >
                     <CardBody className="flex flex-col gap-4 p-0 sm:flex-row sm:gap-0">
                       <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-gradient-to-br from-brand-50 via-amber-50 to-rose-50 sm:aspect-square sm:w-44 sm:self-start lg:w-52">
                         {item.image ? (
