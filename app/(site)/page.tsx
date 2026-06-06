@@ -2,7 +2,7 @@ import { PaperMenuModal } from "@/components/ui/PaperMenuModal";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
-import { menuItems } from "@/data/menu";
+import { getMenuItems } from "@/lib/menuStore";
 import {
   RESTAURANT_ADDRESS,
   RESTAURANT_HOURS,
@@ -12,9 +12,15 @@ import { formatCurrency } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
-const featuredItems = menuItems.filter((item) => item.isFeatured).slice(0, 6);
+// Read the merged menu per request so owner overrides/sold-out flags show
+// immediately. Without this, Next prerenders the featured list at build time
+// (the DB read isn't a `fetch`, so it isn't auto-detected as dynamic).
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default async function Home() {
+  const items = await getMenuItems();
+  const featuredItems = items.filter((item) => item.isFeatured).slice(0, 6);
+
   return (
     <div className="space-y-16 md:space-y-20">
       {/* Hero */}

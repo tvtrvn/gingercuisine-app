@@ -1,4 +1,3 @@
-import { menuItems } from "@/data/menu";
 import { TAX_RATE } from "./config";
 import type {
   AddonOption,
@@ -58,14 +57,10 @@ export function computeCartTotals(
   return { subtotal, tax, total };
 }
 
-const menuById = new Map<string, MenuItem>(
-  menuItems.map((m) => [m.id, m]),
-);
-
 /**
  * A minimal description of what the customer selected for a single line item.
  * We intentionally do NOT accept any `price`, `unitPrice`, or `basePrice`
- * fields from the client — those are recomputed here from `data/menu.ts`.
+ * fields from the client — those are recomputed here from the trusted menu.
  */
 export interface CartSelectionInput {
   menuItemId: string;
@@ -89,13 +84,21 @@ export interface PricedOrder {
 
 /**
  * Recompute the cart server-side from trusted menu data.
+ * `menu` is the merged catalog (base ⊕ owner overrides ⊕ custom items) from
+ * `getMenuItems()` — injected so this stays pure and unit-testable.
  * Throws `PricingError` if any referenced menu item / size / addon / flavor
- * doesn't exist or is not available for the chosen item.
+ * doesn't exist, or is sold out / unavailable for the chosen item. This is the
+ * authoritative sold-out gate: the client UI hiding is cosmetic.
  */
-export function priceCart(selections: CartSelectionInput[]): PricedOrder {
+export function priceCart(
+  selections: CartSelectionInput[],
+  menu: MenuItem[],
+): PricedOrder {
   if (selections.length === 0) {
     throw new PricingError("Cart is empty.");
   }
+
+  const menuById = new Map<string, MenuItem>(menu.map((m) => [m.id, m]));
 
   const items: PricedCartItem[] = selections.map((sel, idx) => {
     const menuItem = menuById.get(sel.menuItemId);
@@ -103,6 +106,9 @@ export function priceCart(selections: CartSelectionInput[]): PricedOrder {
       throw new PricingError(
         `Unknown menu item: "${sel.menuItemId}" (line ${idx + 1}).`,
       );
+    }
+    if (menuItem.available === false) {
+      throw new PricingError(`${menuItem.name} is sold out.`);
     }
 
     let size: SizeOption | undefined;
@@ -115,6 +121,11 @@ export function priceCart(selections: CartSelectionInput[]): PricedOrder {
       if (!size) {
         throw new PricingError(
           `Invalid size "${sel.selectedSizeId}" for ${menuItem.name}.`,
+        );
+      }
+      if (size.soldOut) {
+        throw new PricingError(
+          `The "${size.label}" size for ${menuItem.name} is sold out.`,
         );
       }
     } else if (sel.selectedSizeId) {
@@ -133,6 +144,11 @@ export function priceCart(selections: CartSelectionInput[]): PricedOrder {
             `Invalid add-on "${id}" for ${menuItem.name}.`,
           );
         }
+        if (match.soldOut) {
+          throw new PricingError(
+            `The add-on "${match.name}" for ${menuItem.name} is sold out.`,
+          );
+        }
         return match;
       });
     }
@@ -144,6 +160,11 @@ export function priceCart(selections: CartSelectionInput[]): PricedOrder {
       if (!flavor) {
         throw new PricingError(
           `Invalid flavor "${sel.selectedFlavorId}" for ${menuItem.name}.`,
+        );
+      }
+      if (flavor.soldOut) {
+        throw new PricingError(
+          `The "${flavor.name}" flavor for ${menuItem.name} is sold out.`,
         );
       }
     }

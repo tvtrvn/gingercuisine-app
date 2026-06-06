@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import type { MenuItem, SizeOption, AddonOption } from '@/lib/types'
-import { computeUnitPrice, computeCartTotals } from '@/lib/pricing'
+import {
+  computeUnitPrice,
+  computeCartTotals,
+  priceCart,
+  PricingError,
+} from '@/lib/pricing'
 
 function makeItem(price: number, opts?: Partial<MenuItem>): MenuItem {
   return {
@@ -119,5 +124,116 @@ describe('computeCartTotals', () => {
       tax: 0,
       total: 10.01,
     })
+  })
+})
+
+describe('priceCart sold-out / availability enforcement', () => {
+  // Synthetic merged menu (the kind getMenuItems() now returns). The default
+  // size ('lg') is sold out so a no-size selection resolves to a sold-out
+  // option — proving server enforcement on the default/fallback path.
+  const soup: MenuItem = {
+    id: 'soup',
+    categoryId: 'pho',
+    name: 'Soup',
+    description: '',
+    price: 10,
+    defaultSizeId: 'lg',
+    availableSizes: [
+      { id: 'sm', label: 'Small', priceDelta: 0 },
+      { id: 'lg', label: 'Large', priceDelta: 2, soldOut: true },
+    ],
+    availableAddons: [{ id: 'egg', name: 'Egg', price: 1.5, soldOut: true }],
+    availableFlavors: [
+      { id: 'mild', name: 'Mild', price: 0 },
+      { id: 'spicy', name: 'Spicy', price: 0.5, soldOut: true },
+    ],
+  }
+  const special: MenuItem = {
+    id: 'special',
+    categoryId: 'pho',
+    name: 'Special',
+    description: '',
+    price: 20,
+    available: false,
+  }
+  const menu = [soup, special]
+
+  it('empty cart throws', () => {
+    expect(() => priceCart([], menu)).toThrow(PricingError)
+  })
+
+  it('unknown item throws', () => {
+    expect(() => priceCart([{ menuItemId: 'nope', quantity: 1 }], menu)).toThrow(
+      PricingError,
+    )
+  })
+
+  it('happy path — available size, no modifiers', () => {
+    const priced = priceCart(
+      [{ menuItemId: 'soup', quantity: 1, selectedSizeId: 'sm' }],
+      menu,
+    )
+    expect(priced.items[0].unitPrice).toBe(10)
+    expect(priced.subtotal).toBe(10)
+  })
+
+  it('rejects an item marked available:false', () => {
+    expect(() =>
+      priceCart([{ menuItemId: 'special', quantity: 1 }], menu),
+    ).toThrow(/sold out/i)
+  })
+
+  it('rejects a sold-out DEFAULT size (no explicit size selected)', () => {
+    // No selectedSizeId → resolves to defaultSizeId 'lg', which is sold out.
+    expect(() =>
+      priceCart([{ menuItemId: 'soup', quantity: 1 }], menu),
+    ).toThrow(/sold out/i)
+  })
+
+  it('rejects a sold-out add-on', () => {
+    expect(() =>
+      priceCart(
+        [
+          {
+            menuItemId: 'soup',
+            quantity: 1,
+            selectedSizeId: 'sm',
+            selectedAddonIds: ['egg'],
+          },
+        ],
+        menu,
+      ),
+    ).toThrow(/sold out/i)
+  })
+
+  it('rejects a sold-out flavor', () => {
+    expect(() =>
+      priceCart(
+        [
+          {
+            menuItemId: 'soup',
+            quantity: 1,
+            selectedSizeId: 'sm',
+            selectedFlavorId: 'spicy',
+          },
+        ],
+        menu,
+      ),
+    ).toThrow(/sold out/i)
+  })
+
+  it('allows an available flavor + size combination', () => {
+    const priced = priceCart(
+      [
+        {
+          menuItemId: 'soup',
+          quantity: 1,
+          selectedSizeId: 'sm',
+          selectedFlavorId: 'mild',
+        },
+      ],
+      menu,
+    )
+    expect(priced.items[0].unitPrice).toBe(10)
   })
 })

@@ -4,12 +4,16 @@ export interface AddonOption {
   id: string;
   name: string;
   price: number;
+  /** Owner-set per item: this add-on/flavor is temporarily unavailable. */
+  soldOut?: boolean;
 }
 
 export interface SizeOption {
   id: string;
   label: string;
   priceDelta: number;
+  /** Owner-set per item: this size is temporarily unavailable. */
+  soldOut?: boolean;
 }
 
 export type MenuCategoryId =
@@ -45,6 +49,8 @@ export interface MenuItem {
   image?: string;
   tags?: DietaryTag[];
   isFeatured?: boolean;
+  /** Owner-set: false hides the item from ordering (shown as "Sold out"). Absent = available. */
+  available?: boolean;
   availableAddons?: AddonOption[];
   availableSizes?: SizeOption[];
   defaultSizeId?: string;

@@ -1,6 +1,7 @@
 import { sendOrderEmail } from "@/lib/email";
 import { generateOrderCode } from "@/lib/orderCode";
 import { getOrderingAvailability } from "@/lib/orderingStatus";
+import { getMenuItems } from "@/lib/menuStore";
 import { createOrder } from "@/lib/orderStore";
 import { PricingError, priceCart } from "@/lib/pricing";
 import {
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     let priced;
     try {
-      priced = priceCart(selections);
+      priced = priceCart(selections, await getMenuItems());
     } catch (err) {
       if (err instanceof PricingError) {
         return NextResponse.json({ error: err.message }, { status: 400 });
