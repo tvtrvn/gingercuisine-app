@@ -87,12 +87,31 @@ describe('computeCartTotals', () => {
     })
   })
 
-  it('single item, qty 3 — tax rounds half-up', () => {
-    // tax = round2(37.50 * 0.13) = round2(4.875) = 4.88
+  it('single item, qty 3 — tax ceils to the cent', () => {
+    // tax = ceil2(37.50 * 0.13) = ceil2(4.875) = 4.88
     expect(computeCartTotals([{ unitPrice: 12.50, quantity: 3 }], 0.13)).toEqual({
       subtotal: 37.50,
       tax: 4.88,
       total: 42.38,
+    })
+  })
+
+  it('fractional cent in tax is rounded UP, never down', () => {
+    // Butter chicken on rice: 18.95 * 0.13 = 2.4635.
+    // round-half would give 2.46 / total 21.41 (a cent short); ceiling gives 2.47.
+    expect(computeCartTotals([{ unitPrice: 18.95, quantity: 1 }], 0.13)).toEqual({
+      subtotal: 18.95,
+      tax: 2.47,
+      total: 21.42,
+    })
+  })
+
+  it('whole-cent tax is not over-rounded by float noise', () => {
+    // 10 * 0.13 stores as 1.3000000000000003; ceiling must still yield 1.30, not 1.31.
+    expect(computeCartTotals([{ unitPrice: 10, quantity: 1 }], 0.13)).toEqual({
+      subtotal: 10,
+      tax: 1.30,
+      total: 11.30,
     })
   })
 

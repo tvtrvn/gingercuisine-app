@@ -18,6 +18,14 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+// Round up to the next whole cent. Used for tax so a fractional cent
+// (e.g. 18.95 * 0.13 = 2.4635) never rounds *down* and leaves the total short.
+// The toFixed(6) collapses binary float noise (10 * 0.13 -> 1.3000000000000003)
+// before ceiling so we don't over-round a value that is already a whole cent.
+function ceil2(n: number): number {
+  return Math.ceil(Number((n * 100).toFixed(6))) / 100;
+}
+
 /**
  * Compute the unit price for a single configured menu line.
  * Pure function — same inputs always produce the same output.
@@ -52,7 +60,7 @@ export function computeCartTotals(
   const subtotal = round2(
     items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0),
   );
-  const tax = round2(subtotal * taxRate);
+  const tax = ceil2(subtotal * taxRate);
   const total = round2(subtotal + tax);
   return { subtotal, tax, total };
 }
