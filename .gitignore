@@ -60,3 +60,5 @@ public/videos/
 # Cursor IDE
 .cursor/
 .gitnexus
+# gitnexus skill bundle is tool-generated (re-created by `gitnexus analyze`), keep out of git
+.claude/skills/gitnexus/
