@@ -3,9 +3,8 @@
 import dotenv from "dotenv";
 import { defineConfig } from "prisma/config";
 
-// Prisma CLI does not automatically read .env.local here, so load it first.
+// All secrets live in .env.local (Prisma CLI doesn't read it automatically, so load it explicitly).
 dotenv.config({ path: ".env.local" });
-dotenv.config();
 
 export default defineConfig({
   // MongoDB uses `prisma db push`, not SQL migrations — no migrations path.
