@@ -62,3 +62,13 @@ public/videos/
 .gitnexus
 # gitnexus skill bundle is tool-generated (re-created by `gitnexus analyze`), keep out of git
 .claude/skills/gitnexus/
+
+# Claude setup standard (canonical entries)
+node_modules/
+.next/
+dist/
+build/
+.env
+.env.*
+.gitnexus/
+.claude/settings.local.json

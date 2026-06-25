@@ -42,6 +42,13 @@ This project is indexed by GitNexus as **gingercuisine-app** (1438 symbols, 2625
 
 <!-- gitnexus:end -->
 
+## Project rules
+
+- **Purpose:** Ginger Cuisine pickup ordering site (pay-in-person, no online payment) plus a password-protected staff tablet dashboard for live order tracking.
+- **Layout:** `app/` (Next.js App Router routes + `/api`, `/dashboard`), `lib/` (server logic, Prisma client, rate limiting), `prisma/` (schema), `e2e/` (Playwright), `docs/` (setup + archive); `walkthrough.md` is the canonical deep-dive.
+- **Build / test:** `npm run dev` · `npm run build` (runs `prisma generate` then `next build`) · `npm run lint` · `npm test` (Vitest) · `npm run e2e` (Playwright).
+- **Do / don't:** Payment is always in person — never add an online payment step; server recomputes all prices and gates confirmation pages with per-order view tokens, so keep validation server-side. Global coding standards live in `~/.claude/CLAUDE.md`.
+
 <!-- skills:start -->
 ## Available Skills
 
