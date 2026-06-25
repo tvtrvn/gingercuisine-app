@@ -21,6 +21,9 @@ export function ElapsedTime({ since }: { since: string }) {
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
+    // Intentional: start the client-only clock after mount. Seeding `now` in
+    // useState would risk an SSR/hydration mismatch (see note above).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
