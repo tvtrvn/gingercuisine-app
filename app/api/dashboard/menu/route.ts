@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   addCustomItem,
   deleteCustomItem,
-  getMenuAuditLog,
   getMenuItems,
   updateCustomItem,
   upsertOverride,
@@ -56,7 +55,7 @@ async function parseJson(req: NextRequest): Promise<unknown | null> {
   }
 }
 
-/** GET — the merged menu + recent audit entries for the dashboard UI. */
+/** GET — the merged menu for the dashboard UI. (History lives on its own page.) */
 export async function GET(req: NextRequest) {
   const unauthorized = await requireDashboardApi();
   if (unauthorized) return unauthorized;
@@ -65,13 +64,9 @@ export async function GET(req: NextRequest) {
   if (!rl.success) return tooMany(rl.reset);
 
   try {
-    const [items, audit] = await Promise.all([
-      getMenuItems(),
-      getMenuAuditLog(),
-    ]);
-    // Newest audit entries first, capped for the UI.
+    const items = await getMenuItems();
     return NextResponse.json(
-      { items, audit: audit.slice(-50).reverse() },
+      { items },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

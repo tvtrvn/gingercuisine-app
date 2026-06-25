@@ -114,11 +114,31 @@ export async function getMenuItems(): Promise<MenuItem[]> {
 
 export type CustomItemFields = Omit<MenuItem, "id">;
 
+/**
+ * One human-readable field change inside an override edit. `from`/`to` drive the
+ * strike-through-old / bold-new rendering; `detail` carries changes that aren't a
+ * clean old→new pair (e.g. which options went sold out).
+ */
+export interface MenuFieldChange {
+  label: string;
+  from?: string;
+  to?: string;
+  detail?: string;
+}
+
 export interface MenuAuditEntry {
   at: string; // ISO
   action: "override" | "add" | "edit" | "delete";
   itemId: string;
+  /** Display name of the edited item. Set on `override`; absent on legacy
+   * entries and on add/edit/delete (whose `summary` already names the item). */
+  itemName?: string;
   summary: string;
+  /**
+   * Structured per-field changes for `override` entries. Absent on legacy
+   * entries and on add/edit/delete — the UI falls back to `summary` then.
+   */
+  changes?: MenuFieldChange[];
   actor: string; // hashed dashboard-session key (never a raw token)
 }
 
@@ -163,25 +183,126 @@ async function appendMenuAudit(
   }
 }
 
-function summarizeOverride(
+/** Money for display: 8.95 → "$8.95". */
+function money(n: number): string {
+  return `$${n.toFixed(2)}`;
+}
+
+/** Two prices are "equal" if they round to the same cents (kills 8.95→8.95 noise). */
+function samePrice(a: number, b: number): boolean {
+  return a.toFixed(2) === b.toFixed(2);
+}
+
+function quote(s: string): string {
+  return s.length ? `"${s}"` : "(empty)";
+}
+
+/** id → human label for every size/flavor/add-on option on a base item. */
+function optionLabels(base: MenuItem | undefined): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const s of base?.availableSizes ?? []) map.set(s.id, s.label);
+  for (const f of base?.availableFlavors ?? []) map.set(f.id, f.name);
+  for (const a of base?.availableAddons ?? []) map.set(a.id, a.name);
+  return map;
+}
+
+/** Ids of options the base catalog already ships as sold out. */
+function baseSoldOutIds(base: MenuItem | undefined): string[] {
+  const ids: string[] = [];
+  for (const o of [
+    ...(base?.availableSizes ?? []),
+    ...(base?.availableFlavors ?? []),
+    ...(base?.availableAddons ?? []),
+  ]) {
+    if (o.soldOut) ids.push(o.id);
+  }
+  return ids;
+}
+
+/**
+ * Diff an incoming override `patch` against the item's EFFECTIVE current state
+ * (the existing override value if set, otherwise the base catalog value) and
+ * return only the fields that genuinely changed. Pure — no I/O — so it's unit
+ * tested directly. An empty result means "nothing actually changed".
+ *
+ * The dashboard panel always submits all five fields seeded from the merged
+ * item, so this is the single place that separates real edits from no-ops.
+ */
+export function diffOverride(
   base: MenuItem | undefined,
   prev: MenuOverride,
   patch: MenuOverride,
-): string {
-  const parts: string[] = [];
+): MenuFieldChange[] {
+  const changes: MenuFieldChange[] = [];
+
   if (patch.available !== undefined) {
-    parts.push(patch.available ? "marked available" : "marked sold out");
+    const prevAvail = prev.available ?? (base ? base.available !== false : true);
+    if (patch.available !== prevAvail) {
+      changes.push({
+        label: "Availability",
+        from: prevAvail ? "Available" : "Sold out",
+        to: patch.available ? "Available" : "Sold out",
+      });
+    }
   }
+
   if (patch.price !== undefined) {
-    const old = prev.price ?? base?.price;
-    parts.push(`price ${old ?? "?"}→${patch.price}`);
+    const prevPrice = prev.price ?? base?.price;
+    if (prevPrice === undefined || !samePrice(prevPrice, patch.price)) {
+      changes.push({
+        label: "Price",
+        from: prevPrice === undefined ? undefined : money(prevPrice),
+        to: money(patch.price),
+      });
+    }
   }
-  if (patch.name !== undefined) parts.push("renamed");
-  if (patch.description !== undefined) parts.push("description edited");
+
+  if (patch.name !== undefined) {
+    const prevName = prev.name ?? base?.name ?? "";
+    if (patch.name !== prevName) {
+      changes.push({ label: "Name", from: quote(prevName), to: quote(patch.name) });
+    }
+  }
+
+  if (patch.description !== undefined) {
+    const prevDesc = prev.description ?? base?.description ?? "";
+    if (patch.description !== prevDesc) {
+      changes.push({
+        label: "Description",
+        from: quote(prevDesc),
+        to: quote(patch.description),
+      });
+    }
+  }
+
   if (patch.soldOutOptionIds !== undefined) {
-    parts.push(`${patch.soldOutOptionIds.length} sold-out option(s)`);
+    const prevIds = new Set(prev.soldOutOptionIds ?? baseSoldOutIds(base));
+    const nextIds = new Set(patch.soldOutOptionIds);
+    const labels = optionLabels(base);
+    const name = (id: string) => labels.get(id) ?? id;
+    const added = [...nextIds].filter((id) => !prevIds.has(id)).map(name);
+    const removed = [...prevIds].filter((id) => !nextIds.has(id)).map(name);
+    if (added.length) {
+      changes.push({ label: "Options sold out", detail: added.join(", ") });
+    }
+    if (removed.length) {
+      changes.push({ label: "Options back in stock", detail: removed.join(", ") });
+    }
   }
-  return parts.length ? parts.join(", ") : "override updated";
+
+  return changes;
+}
+
+/** Collapse structured changes into the one-line `summary` string. */
+export function summarizeChanges(changes: MenuFieldChange[]): string {
+  return changes
+    .map((c) => {
+      if (c.from !== undefined && c.to !== undefined) return `${c.label} ${c.from} → ${c.to}`;
+      if (c.detail !== undefined) return `${c.label}: ${c.detail}`;
+      if (c.to !== undefined) return `${c.label} ${c.to}`;
+      return c.label;
+    })
+    .join(", ");
 }
 
 export async function upsertOverride(
@@ -190,13 +311,19 @@ export async function upsertOverride(
   actor: string,
 ): Promise<void> {
   const current = await getMenuCustomizations();
+  const base = baseById.get(itemId);
   const prev = current.overrides[itemId] ?? {};
+  const changes = diffOverride(base, prev, patch);
   current.overrides[itemId] = { ...prev, ...patch };
   await writeCustomizations(current);
+  // A genuine no-op save (panel opened and saved unchanged) leaves no log noise.
+  if (changes.length === 0) return;
   await appendMenuAudit({
     action: "override",
     itemId,
-    summary: summarizeOverride(baseById.get(itemId), prev, patch),
+    itemName: patch.name ?? prev.name ?? base?.name ?? itemId,
+    summary: summarizeChanges(changes),
+    changes,
     actor,
   });
 }

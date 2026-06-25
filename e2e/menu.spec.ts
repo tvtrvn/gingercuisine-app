@@ -143,4 +143,42 @@ test.describe.serial("menu management", () => {
     expect(result.status).toBe(400);
     expect(result.body).toMatch(/sold out/i);
   });
+
+  test("change history: an override logs a clean, itemized entry on its own page", async ({
+    page,
+  }) => {
+    // Make a recognizable price edit on the base item.
+    await openOverride(page);
+    await page.getByTestId("ov-soldout").uncheck();
+    await page.getByTestId("ov-price").fill("33.33");
+    await page.getByTestId("ov-save").click();
+    await expect(page.getByRole("status")).toContainText(/saved/i);
+
+    // History lives on its own page, reachable from the menu header link.
+    await page.getByRole("link", { name: /change history/i }).click();
+    await expect(page).toHaveURL(/\/dashboard\/menu\/history/);
+
+    const newest = page.locator("section ul > li").first();
+    await expect(newest).toContainText(BASE_NAME); // which item
+    await expect(newest).toContainText("$33.33"); // the new price
+    await expect(newest).toContainText("Updated"); // action badge
+    // None of the old no-op noise.
+    await expect(newest).not.toContainText("8.95→8.95");
+    await expect(newest).not.toContainText("renamed");
+    await expect(newest).not.toContainText("description edited");
+    await expect(newest).not.toContainText("sold-out option(s)");
+  });
+
+  test("change history: a no-op save creates no entry", async ({ page }) => {
+    // Open the override panel and save without changing anything.
+    await openOverride(page);
+    await page.getByTestId("ov-save").click();
+    await expect(page.getByRole("status")).toContainText(/saved/i);
+
+    // The newest entry is still the prior price edit — a no-op never prepends
+    // an empty "Updated" card.
+    await page.goto("/dashboard/menu/history");
+    const newest = page.locator("section ul > li").first();
+    await expect(newest).toContainText("$33.33");
+  });
 });

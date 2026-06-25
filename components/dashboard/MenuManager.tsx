@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, Plus, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, History, Plus, Trash2, Upload, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { menuCategories } from "@/data/menu";
-import type { MenuAuditEntry } from "@/lib/menuStore";
 import type {
   AddonOption,
   DietaryTag,
@@ -564,14 +563,11 @@ function BaseOverridePanel({
 export function MenuManager({
   restaurantName,
   initialItems,
-  initialAudit,
 }: {
   restaurantName: string;
   initialItems: MenuItem[];
-  initialAudit: MenuAuditEntry[];
 }) {
   const [items, setItems] = useState<MenuItem[]>(initialItems);
-  const [audit, setAudit] = useState<MenuAuditEntry[]>(initialAudit);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<MenuCategoryId | "all">("all");
   const [adding, setAdding] = useState(false);
@@ -585,7 +581,6 @@ export function MenuManager({
       if (!res.ok) return;
       const data = await res.json();
       setItems(data.items as MenuItem[]);
-      setAudit(data.audit as MenuAuditEntry[]);
     } catch {
       /* leave current state; the next action will retry */
     }
@@ -653,13 +648,22 @@ export function MenuManager({
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6">
       <header className="space-y-2">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-          Back to orders
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+            Back to orders
+          </Link>
+          <Link
+            href="/dashboard/menu/history"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
+          >
+            <History className="h-3.5 w-3.5" aria-hidden />
+            Change history
+          </Link>
+        </div>
         <h1 className="text-xl font-bold tracking-tight text-neutral-900 md:text-2xl">
           Menu management
         </h1>
@@ -812,26 +816,6 @@ export function MenuManager({
           <p className="py-8 text-center text-sm text-neutral-500">No items match.</p>
         )}
       </div>
-
-      {/* Audit log */}
-      {audit.length > 0 && (
-        <details className="rounded-xl border border-neutral-200 bg-white p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-neutral-800">
-            Recent changes ({audit.length})
-          </summary>
-          <ul className="mt-3 space-y-1.5 text-xs text-neutral-600">
-            {audit.map((e, i) => (
-              <li key={i} className="flex flex-wrap gap-x-2">
-                <span className="text-neutral-400">
-                  {new Date(e.at).toLocaleString()}
-                </span>
-                <span className="font-medium text-neutral-800">{e.action}</span>
-                <span>{e.summary}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
     </div>
   );
 }
