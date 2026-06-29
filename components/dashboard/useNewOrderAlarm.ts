@@ -2,37 +2,41 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const INTERVAL_MS = 2500;
+/** Custom chime audio file, served from public/sounds/. */
+const SOUND_URL = "/sounds/new-order.mp3";
+/**
+ * Re-fire cadence. The clip is ~2s with a quiet tail, so we restart it every
+ * 1s — staff hear only the loud opening, repeated, until they acknowledge.
+ */
+const INTERVAL_MS = 1500;
+/** Playback gain. 1 = file's recorded level; raise toward ~2 for more, but >1 risks clipping. */
+const VOLUME = 2.0;
+
+/** Live source node, so each re-fire can stop the previous clip before replaying. */
+type SourceRef = { current: AudioBufferSourceNode | null };
 
 /**
- * Loud three-beep alert chime. A square wave at high gain is perceptually much
- * louder than the old sine tone and cuts through kitchen noise — staff reported
- * the previous chime was too quiet to hear. Loops while any order is
- * unacknowledged (see the hook below).
+ * Plays the decoded custom chime once through the shared AudioContext. Stops
+ * any still-playing instance first so the 1s re-fire restarts cleanly (cutting
+ * the clip's quiet tail) instead of overlapping.
  */
-function fireChime(ctx: AudioContext) {
+function fireChime(ctx: AudioContext, buffer: AudioBuffer, sourceRef: SourceRef) {
   try {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    const t0 = ctx.currentTime;
-    const PEAK = 0.6; // vs 0.25 before — louder, still below clipping
-    // Rising three-beep burst (B5 → E6 → G6).
-    const beeps = [
-      { f: 988, start: 0.0 },
-      { f: 1319, start: 0.18 },
-      { f: 1568, start: 0.36 },
-    ];
-    gain.gain.setValueAtTime(0.0001, t0);
-    for (const b of beeps) {
-      osc.frequency.setValueAtTime(b.f, t0 + b.start);
-      gain.gain.setValueAtTime(0.0001, t0 + b.start);
-      gain.gain.exponentialRampToValueAtTime(PEAK, t0 + b.start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + b.start + 0.14);
+    if (sourceRef.current) {
+      try {
+        sourceRef.current.stop();
+      } catch {
+        // already stopped
+      }
+      sourceRef.current = null;
     }
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t0);
-    osc.stop(t0 + 0.52);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = VOLUME;
+    src.connect(gain).connect(ctx.destination);
+    src.start();
+    sourceRef.current = src;
   } catch {
     // best-effort
   }
@@ -59,11 +63,46 @@ export function useNewOrderAlarm(active: boolean): { needsGesture: boolean } {
   const ctxRef = useRef<AudioContext | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gestureCleanupRef = useRef<(() => void) | null>(null);
+  const bufferRef = useRef<AudioBuffer | null>(null);
+  const loadingRef = useRef<Promise<AudioBuffer | null> | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   /** True while autoplay blocks sound until resume() runs from a gesture. */
   const [needsGesture, setNeedsGesture] = useState(false);
 
   useEffect(() => {
+    /** Fetch + decode the chime once; retries on next tick if it fails. */
+    const ensureBuffer = (ctx: AudioContext): Promise<AudioBuffer | null> => {
+      if (bufferRef.current) return Promise.resolve(bufferRef.current);
+      if (!loadingRef.current) {
+        loadingRef.current = (async () => {
+          try {
+            const res = await fetch(SOUND_URL);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.arrayBuffer();
+            const buf = await ctx.decodeAudioData(data);
+            bufferRef.current = buf;
+            return buf;
+          } catch {
+            loadingRef.current = null; // allow retry on a later tick
+            return null;
+          }
+        })();
+      }
+      return loadingRef.current;
+    };
+
+    const stopSource = () => {
+      if (sourceRef.current) {
+        try {
+          sourceRef.current.stop();
+        } catch {
+          // already stopped
+        }
+        sourceRef.current = null;
+      }
+    };
+
     const teardownInterval = () => {
       if (intervalRef.current !== null) {
         clearInterval(intervalRef.current);
@@ -111,6 +150,7 @@ export function useNewOrderAlarm(active: boolean): { needsGesture: boolean } {
 
     if (!active) {
       teardownInterval();
+      stopSource();
       removeGestureListeners();
       scheduleGestureFlag(setNeedsGesture, false);
       return;
@@ -122,16 +162,24 @@ export function useNewOrderAlarm(active: boolean): { needsGesture: boolean } {
     const ctx = ctxRef.current;
     if (!ctx) return;
 
+    // Each tick loads the clip if needed (built-in retry) then plays it.
+    const tick = () => {
+      void ensureBuffer(ctx).then((buf) => {
+        if (buf) fireChime(ctx, buf, sourceRef);
+      });
+    };
+
     const startLoop = () => {
       teardownInterval();
-      fireChime(ctx);
-      intervalRef.current = setInterval(() => fireChime(ctx), INTERVAL_MS);
+      tick();
+      intervalRef.current = setInterval(tick, INTERVAL_MS);
     };
 
     attachResumeThenStart(ctx, startLoop);
 
     return () => {
       teardownInterval();
+      stopSource();
       removeGestureListeners();
     };
   }, [active]);
@@ -142,6 +190,14 @@ export function useNewOrderAlarm(active: boolean): { needsGesture: boolean } {
       if (intervalRef.current !== null) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
+      }
+      if (sourceRef.current) {
+        try {
+          sourceRef.current.stop();
+        } catch {
+          // already stopped
+        }
+        sourceRef.current = null;
       }
       gestureCleanupRef.current?.();
       gestureCleanupRef.current = null;
