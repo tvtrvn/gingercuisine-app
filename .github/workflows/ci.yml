@@ -1,0 +1,40 @@
+name: CI
+
+# The regression gate that was missing when the Redis cost blowout and the
+# pricing double-charge shipped. Runs on every push and PR, before Vercel's
+# push-to-main auto-deploy. Hermetic: lint + unit tests + production build need
+# no database or secrets (routes are dynamic; Prisma only generates its client).
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Prisma's datasource references env("DATABASE_URL"); a dummy value lets
+      # `prisma generate` / `next build` run without a real database.
+      DATABASE_URL: "mongodb://localhost:27017/ci-placeholder"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

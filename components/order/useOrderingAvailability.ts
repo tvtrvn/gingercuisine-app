@@ -83,7 +83,8 @@ export function useOrderingAvailability(
   useEffect(() => {
     void fetchAvailability();
     const id = setInterval(() => {
-      void fetchAvailability();
+      // Don't poll a backgrounded tab; the focus listener refetches on return.
+      if (!document.hidden) void fetchAvailability();
     }, intervalMs);
     const onFocus = () => {
       void fetchAvailability();

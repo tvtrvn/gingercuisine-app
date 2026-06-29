@@ -151,7 +151,11 @@ export function OrderBoard({
     // placed between SSR and mount) populate within a few ms instead of
     // waiting a full poll interval.
     void fetchOrders();
-    const id = setInterval(fetchOrders, pollIntervalMs);
+    // Skip polling while the tab is hidden (backgrounded tablet) — the focus
+    // listener refetches the moment it's foregrounded again.
+    const id = setInterval(() => {
+      if (!document.hidden) void fetchOrders();
+    }, pollIntervalMs);
     const onFocus = () => fetchOrders();
     window.addEventListener("focus", onFocus);
     return () => {
@@ -328,6 +332,17 @@ export function OrderBoard({
 
   return (
     <div className="space-y-0">
+      {/* Full-screen flashing green alert while any order is unacknowledged.
+          Independent of soundMuted so the visual cue stays even when staff
+          mute the chime — that's the backup for "can't hear it". pointer-events
+          -none keeps the Acknowledge buttons clickable; it auto-clears the
+          moment the last "new" order is acknowledged (newCount -> 0). */}
+      {newCount > 0 && (
+        <div
+          aria-hidden
+          className="animate-dashboard-new-flash pointer-events-none fixed inset-0 z-[55] bg-green-500/25"
+        />
+      )}
       <OrderingStatusBanner initialAvailability={initialAvailability} />
       <DashboardTopBar
         restaurantName={restaurantName}

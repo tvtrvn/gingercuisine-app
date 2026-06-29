@@ -67,7 +67,9 @@ export function PauseOrdersControl({
         // Silent — top bar shows a separate connectivity indicator.
       }
     }
-    const id = setInterval(refresh, 30_000);
+    const id = setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 30_000);
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => {
@@ -287,7 +289,9 @@ export function OrderingStatusBanner({
         // ignore
       }
     }
-    const id = setInterval(refresh, 30_000);
+    const id = setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 30_000);
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => {

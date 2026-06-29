@@ -125,12 +125,47 @@ function makeLimiter(factory: LimiterFactory) {
   };
 }
 
+/**
+ * In-process fixed-window limiter — no Redis. Used for the authenticated staff
+ * dashboard, whose high-frequency board poll would otherwise burn the Upstash
+ * free tier (one always-on tablet ≈ 1M Redis commands/month). Limits are
+ * per-serverless-instance rather than global, which is fine here: the goal is
+ * to bound a hijacked session's request rate, not to enforce a precise global
+ * quota across instances. Resets on cold start; that's acceptable for staff.
+ */
+function makeInMemoryLimiter(max: number, windowMs: number) {
+  const hits = new Map<string, { count: number; reset: number }>();
+  return {
+    async limit(key: string): Promise<RateLimitResult> {
+      const now = Date.now();
+      let entry = hits.get(key);
+      if (!entry || entry.reset <= now) {
+        entry = { count: 0, reset: now + windowMs };
+        hits.set(key, entry);
+      }
+      entry.count++;
+      // Light pruning so rotating IP keys can't grow the map unbounded.
+      if (hits.size > 1000) {
+        for (const [k, v] of hits) if (v.reset <= now) hits.delete(k);
+      }
+      return {
+        success: entry.count <= max,
+        limit: max,
+        remaining: Math.max(0, max - entry.count),
+        reset: entry.reset,
+      };
+    },
+  };
+}
+
 // Strict: dashboard login — protect the password from brute force.
 export const loginRateLimit = makeLimiter((redis) =>
   new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(5, "1 m"),
-    analytics: true,
+    // analytics disabled: the Upstash analytics event ~doubles command count
+    // per .limit() call for no functional benefit here.
+    ephemeralCache: new Map(),
     prefix: "rl:login",
   }),
 );
@@ -140,7 +175,9 @@ export const orderRateLimit = makeLimiter((redis) =>
   new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(10, "1 m"),
-    analytics: true,
+    // analytics disabled: the Upstash analytics event ~doubles command count
+    // per .limit() call for no functional benefit here.
+    ephemeralCache: new Map(),
     prefix: "rl:order",
   }),
 );
@@ -150,50 +187,41 @@ export const contactRateLimit = makeLimiter((redis) =>
   new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(5, "10 m"),
-    analytics: true,
+    // analytics disabled: the Upstash analytics event ~doubles command count
+    // per .limit() call for no functional benefit here.
+    ephemeralCache: new Map(),
     prefix: "rl:contact",
   }),
 );
 
-// Per-staff-session cap on dashboard writes.
-export const dashboardWriteRateLimit = makeLimiter((redis) =>
-  new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(60, "1 m"),
-    analytics: true,
-    prefix: "rl:dash",
-  }),
-);
+// Per-staff-session cap on dashboard writes. In-memory (no Redis): the
+// dashboard is authenticated, and keeping its limiters off Upstash is what
+// frees the free-tier quota the board poll used to exhaust.
+export const dashboardWriteRateLimit = makeInMemoryLimiter(60, 60_000);
 
 // Per-staff-session cap on dashboard reads (board polling + single-order
 // detail GETs). Generous, but bounded so a hijacked or XSS-pulled cookie
-// can't scrape the entire order history in a tight loop.
-export const dashboardReadRateLimit = makeLimiter((redis) =>
-  new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(120, "1 m"),
-    analytics: true,
-    prefix: "rl:dash-read",
-  }),
-);
+// can't scrape the entire order history in a tight loop. In-memory — this is
+// the high-frequency poll that was burning the Upstash free tier.
+export const dashboardReadRateLimit = makeInMemoryLimiter(120, 60_000);
 
 // Per-staff-session cap on dashboard searches. Search hits the DB harder
 // than a normal board fetch (it may scan older history), so cap it lower.
-export const dashboardSearchRateLimit = makeLimiter((redis) =>
-  new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(30, "1 m"),
-    analytics: true,
-    prefix: "rl:dash-search",
-  }),
-);
+export const dashboardSearchRateLimit = makeInMemoryLimiter(30, 60_000);
+
+// Public ordering-availability poll. In-memory per-IP cap (no Redis) — this is
+// an unauthenticated endpoint hit by every order-page visitor every 30s, so it
+// must not consume the Upstash quota the way the old dashboard poll did.
+export const availabilityRateLimit = makeInMemoryLimiter(60, 60_000);
 
 /** Customer order-status polling — token-gated lightweight GET. */
 export const orderStatusRateLimit = makeLimiter((redis) =>
   new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(60, "1 m"),
-    analytics: true,
+    // analytics disabled: the Upstash analytics event ~doubles command count
+    // per .limit() call for no functional benefit here.
+    ephemeralCache: new Map(),
     prefix: "rl:order-status",
   }),
 );

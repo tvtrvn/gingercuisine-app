@@ -6,6 +6,7 @@ import {
   priceCart,
   PricingError,
 } from '@/lib/pricing'
+import { menuItems } from '@/data/menu'
 
 function makeItem(price: number, opts?: Partial<MenuItem>): MenuItem {
   return {
@@ -71,6 +72,41 @@ describe('computeUnitPrice', () => {
   it('all modifiers explicitly undefined', () => {
     const item = makeItem(12.50)
     expect(computeUnitPrice(item, undefined, undefined, undefined)).toBe(12.50)
+  })
+
+  // A dish whose DEFAULT base is premium (+$1) lists a price that already
+  // includes that dollar — e.g. Chicken & Shrimp Pad Thai at 18.95 with a
+  // default Pad Thai base. The default base must NOT be charged again; only
+  // switching to a *different* base adds that base's delta.
+  describe('premium default base — delta already in listed price', () => {
+    const padThai: SizeOption = { id: 'base-pad-thai', label: 'Pad Thai', priceDelta: 1.0 }
+    const udon: SizeOption = { id: 'base-udon', label: 'Udon', priceDelta: 1.0 }
+    const whiteRice: SizeOption = { id: 'base-white-rice', label: 'White Rice', priceDelta: 0 }
+    const item = makeItem(18.95, {
+      availableSizes: [whiteRice, padThai, udon],
+      defaultSizeId: 'base-pad-thai',
+    })
+
+    it('on its default premium base — listed price, no double-charge', () => {
+      expect(computeUnitPrice(item, padThai)).toBe(18.95)
+    })
+
+    it('switched to a cheaper base — listed price (no discount)', () => {
+      expect(computeUnitPrice(item, whiteRice)).toBe(18.95)
+    })
+
+    it('switched to a different premium base — adds $1', () => {
+      expect(computeUnitPrice(item, udon)).toBe(19.95)
+    })
+
+    it('rice plate (cheap default) switched up to a premium base — adds $1', () => {
+      const ricePlate = makeItem(13.95, {
+        availableSizes: [whiteRice, padThai, udon],
+        defaultSizeId: 'base-white-rice',
+      })
+      expect(computeUnitPrice(ricePlate, whiteRice)).toBe(13.95)
+      expect(computeUnitPrice(ricePlate, padThai)).toBe(14.95)
+    })
   })
 })
 
@@ -254,5 +290,61 @@ describe('priceCart sold-out / availability enforcement', () => {
       menu,
     )
     expect(priced.items[0].unitPrice).toBe(10)
+  })
+})
+
+// Regression lock over the REAL catalog for the owner-confirmed base rule
+// (see the INTENTIONAL-business-rule comment in lib/pricing.ts). If anyone
+// changes the listed prices or "simplifies" the delta logic, these break.
+describe('real catalog — premium-default base pricing (owner-confirmed)', () => {
+  function findItem(id: string): MenuItem {
+    const item = menuItems.find((m) => m.id === id)
+    if (!item) throw new Error(`catalog missing ${id}`)
+    return item
+  }
+  function sizeOf(item: MenuItem, sizeId: string): SizeOption {
+    const s = item.availableSizes?.find((x) => x.id === sizeId)
+    if (!s) throw new Error(`${item.id} missing size ${sizeId}`)
+    return s
+  }
+
+  const cases = [
+    { id: 'specialty-chicken-shrimp-pad-thai', defaultBase: 'base-pad-thai', otherBase: 'base-udon', listed: 18.95, other: 19.95 },
+    { id: 'specialty-chicken-beef-teriyaki-udon', defaultBase: 'base-udon', otherBase: 'base-pad-thai', listed: 18.95, other: 19.95 },
+    { id: 'specialty-lemongrass-tofu-mixed-vegetable-with-pad-thai', defaultBase: 'base-pad-thai', otherBase: 'base-udon', listed: 19.5, other: 20.5 },
+    { id: 'specialty-curry-tofu-mixed-vegetable-eggplant-with-brown-rice', defaultBase: 'base-brown-rice', otherBase: 'base-pad-thai', listed: 16.5, other: 17.5 },
+  ]
+
+  for (const c of cases) {
+    it(`${c.id}: default base = listed $${c.listed}`, () => {
+      const item = findItem(c.id)
+      expect(item.price).toBe(c.listed)
+      expect(item.defaultSizeId).toBe(c.defaultBase)
+      expect(computeUnitPrice(item, sizeOf(item, c.defaultBase))).toBe(c.listed)
+    })
+    it(`${c.id}: cheap base (white rice) = listed $${c.listed} (no discount)`, () => {
+      const item = findItem(c.id)
+      expect(computeUnitPrice(item, sizeOf(item, 'base-white-rice'))).toBe(c.listed)
+    })
+    it(`${c.id}: different premium base = $${c.other} (+$1)`, () => {
+      const item = findItem(c.id)
+      expect(computeUnitPrice(item, sizeOf(item, c.otherBase))).toBe(c.other)
+    })
+  }
+
+  it('priceCart (server path) bills the default base at the listed price', () => {
+    const priced = priceCart(
+      [{ menuItemId: 'specialty-chicken-shrimp-pad-thai', quantity: 1 }],
+      menuItems,
+    )
+    expect(priced.items[0].unitPrice).toBe(18.95)
+  })
+
+  it('priceCart (server path) adds $1 when switched to udon', () => {
+    const priced = priceCart(
+      [{ menuItemId: 'specialty-chicken-shrimp-pad-thai', quantity: 1, selectedSizeId: 'base-udon' }],
+      menuItems,
+    )
+    expect(priced.items[0].unitPrice).toBe(19.95)
   })
 })
