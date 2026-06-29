@@ -311,7 +311,7 @@ describe('real catalog — premium-default base pricing (owner-confirmed)', () =
   const cases = [
     { id: 'specialty-chicken-shrimp-pad-thai', defaultBase: 'base-pad-thai', otherBase: 'base-udon', listed: 18.95, other: 19.95 },
     { id: 'specialty-chicken-beef-teriyaki-udon', defaultBase: 'base-udon', otherBase: 'base-pad-thai', listed: 18.95, other: 19.95 },
-    { id: 'specialty-lemongrass-tofu-mixed-vegetable-with-pad-thai', defaultBase: 'base-pad-thai', otherBase: 'base-udon', listed: 19.5, other: 20.5 },
+    { id: 'specialty-lemongrass-tofu-mixed-vegetable-with-pad-thai', defaultBase: 'base-pad-thai', otherBase: 'base-udon', listed: 16.5, other: 17.5 },
     { id: 'specialty-curry-tofu-mixed-vegetable-eggplant-with-brown-rice', defaultBase: 'base-brown-rice', otherBase: 'base-pad-thai', listed: 16.5, other: 17.5 },
   ]
 
