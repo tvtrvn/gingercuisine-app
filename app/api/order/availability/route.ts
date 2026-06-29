@@ -1,5 +1,10 @@
 import { getOrderingAvailability } from "@/lib/orderingStatus";
-import { NextResponse } from "next/server";
+import {
+  availabilityRateLimit,
+  getClientIp,
+  retryAfterSeconds,
+} from "@/lib/rateLimit";
+import { NextResponse, type NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,25 +14,49 @@ export const dynamic = "force-dynamic";
  * disable the submit button + show a banner when we can't accept orders.
  *
  * Safe to expose: it returns hours + a staff-supplied "reason" string, never
- * any operational details. No rate limiting because it's cached for 15s
- * client-side, and the underlying DB read is a single document by primary
- * key. If you need to publish a sensitive pause reason, redact it before
- * calling `setOrderingPause`.
+ * any operational details.
+ *
+ * Cost control (this is a public, unauthenticated endpoint polled every 30s by
+ * every order-page visitor): a per-IP in-memory rate limit (no Redis) plus a
+ * short server-side TTL memo so concurrent pollers collapse to ~1 DB read per
+ * TTL window per instance, and a matching `max-age` so the browser/CDN can
+ * serve the response without re-hitting us. The order-submit path
+ * (`/api/order`) reads `getOrderingAvailability()` directly and is NOT cached —
+ * it always re-checks against live truth.
  */
-export async function GET() {
-  try {
-    const availability = await getOrderingAvailability();
-    return NextResponse.json(availability, {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
+const CACHE_TTL_MS = 10_000;
+
+let cached: {
+  at: number;
+  body: Awaited<ReturnType<typeof getOrderingAvailability>>;
+} | null = null;
+
+export async function GET(req: NextRequest) {
+  const rl = await availabilityRateLimit.limit(`avail:${getClientIp(req)}`);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds(rl.reset)) },
       },
+    );
+  }
+
+  try {
+    const now = Date.now();
+    if (!cached || now - cached.at >= CACHE_TTL_MS) {
+      cached = { at: now, body: await getOrderingAvailability() };
+    }
+    return NextResponse.json(cached.body, {
+      headers: { "Cache-Control": "public, max-age=10, s-maxage=10" },
     });
   } catch (error) {
     console.error("[/api/order/availability]", error);
     // Fail closed: if we can't read availability we surface "not accepting"
     // so customers see the degraded banner and don't compose orders that
     // /api/order would later reject. The submit-side enforcement still
-    // exists as a backstop.
+    // exists as a backstop. Never cache a degraded response.
     return NextResponse.json(
       {
         accepting: false,

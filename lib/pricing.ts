@@ -39,7 +39,20 @@ export function computeUnitPrice(
   selectedAddons?: AddonOption[],
   selectedFlavor?: AddonOption,
 ): number {
-  const sizeDelta = selectedSize?.priceDelta ?? 0;
+  // The dish's default base is already priced into menuItem.price; only an
+  // explicit switch to a *different* base adds its delta. This prevents the
+  // listed price of a premium-default dish (e.g. Chicken & Shrimp Pad Thai,
+  // 18.95 on Pad Thai) from being double-charged the base's $1.
+  //
+  // INTENTIONAL business rule (owner-confirmed — do NOT "simplify" to
+  // priceDelta - defaultDelta): for a premium-default dish the default base
+  // and any cheaper base both bill at the listed price (no downgrade refund),
+  // while switching to a *different* premium base (e.g. Pad Thai -> Udon)
+  // still adds +$1. Locked by lib/pricing.test.ts and data/menu.test.ts.
+  const sizeDelta =
+    selectedSize && selectedSize.id !== menuItem.defaultSizeId
+      ? selectedSize.priceDelta
+      : 0;
   const addonsTotal = (selectedAddons ?? []).reduce(
     (sum, a) => sum + a.price,
     0,

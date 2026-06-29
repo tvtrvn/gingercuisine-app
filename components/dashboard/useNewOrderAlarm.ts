@@ -2,24 +2,37 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const INTERVAL_MS = 3000;
+const INTERVAL_MS = 2500;
 
 /**
- * Same two-tone chime originally inline in OrderBoard.playChime.
+ * Loud three-beep alert chime. A square wave at high gain is perceptually much
+ * louder than the old sine tone and cuts through kitchen noise — staff reported
+ * the previous chime was too quiet to hear. Loops while any order is
+ * unacknowledged (see the hook below).
  */
 function fireChime(ctx: AudioContext) {
   try {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.setValueAtTime(1318, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+    osc.type = "square";
+    const t0 = ctx.currentTime;
+    const PEAK = 0.6; // vs 0.25 before — louder, still below clipping
+    // Rising three-beep burst (B5 → E6 → G6).
+    const beeps = [
+      { f: 988, start: 0.0 },
+      { f: 1319, start: 0.18 },
+      { f: 1568, start: 0.36 },
+    ];
+    gain.gain.setValueAtTime(0.0001, t0);
+    for (const b of beeps) {
+      osc.frequency.setValueAtTime(b.f, t0 + b.start);
+      gain.gain.setValueAtTime(0.0001, t0 + b.start);
+      gain.gain.exponentialRampToValueAtTime(PEAK, t0 + b.start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + b.start + 0.14);
+    }
     osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.55);
+    osc.start(t0);
+    osc.stop(t0 + 0.52);
   } catch {
     // best-effort
   }

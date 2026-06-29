@@ -23,9 +23,11 @@ export const CURRENCY = "CAD";
 // Example: 13% HST in Ontario -> 0.13
 export const TAX_RATE = Number(process.env.TAX_RATE ?? "0.13");
 
-// Dashboard polling interval (ms). Can be tuned per-deployment.
+// Dashboard polling interval (ms). Can be tuned per-deployment. 10s keeps the
+// board comfortably live for a low order volume while cutting DB reads and
+// Vercel invocations (the poll no longer touches Redis).
 export const DASHBOARD_POLL_INTERVAL_MS = Number(
-  process.env.DASHBOARD_POLL_INTERVAL_MS ?? "4000",
+  process.env.DASHBOARD_POLL_INTERVAL_MS ?? "10000",
 );
 
 // How far back the live dashboard board fetches completed/cancelled orders.

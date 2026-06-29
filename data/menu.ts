@@ -143,6 +143,12 @@ export const STARTER_SOUP_ADDONS: AddonOption[] = [
   { id: "extra-rice-noodle", name: "Rice noodle", price: 4.0 },
 ];
 
+/** Protein choice for Coconut Mushroom Soup. Chicken first = default. */
+export const COCONUT_SOUP_PROTEIN: AddonOption[] = [
+  { id: "coconut-soup-chicken", name: "Chicken", price: 0.0 },
+  { id: "coconut-soup-tofu", name: "Tofu", price: 0.0 },
+];
+
 /**
  * Extra meat & protein: used on the Sides menu and as add-ons for rice
  * plates, specialty plates, and vermicelli. Pick a specific item — no general
@@ -278,6 +284,7 @@ export const HOT_TEA_FLAVORS = [
 /** Canned soft drink choices (same list price; staff swap brand at the counter). */
 export const SOFT_DRINK_FLAVORS = [
   { id: "coke", name: "Coke", price: 0.0 },
+  { id: "coke-zero", name: "Coke Zero", price: 0.0 },
   { id: "diet-coke", name: "Diet Coke", price: 0.0 },
   { id: "pepsi", name: "Pepsi", price: 0.0 },
   { id: "diet-pepsi", name: "Diet Pepsi", price: 0.0 },
@@ -1178,14 +1185,15 @@ export const menuItems: MenuItem[] = ([
     availableAddons: STARTER_SOUP_ADDONS,
   },
   {
-    id: "starter-chicken-coconut-mushroom-soup", // add a tofu option
+    id: "starter-chicken-coconut-mushroom-soup",
     categoryId: "starter-soups",
-    name: "Chicken Coconut Mushroom Soup",
-    vietnameseName: "Súp Gà Nấu Nước Dừa",
+    name: "Coconut Mushroom Soup",
+    vietnameseName: "Súp Nấu Nước Dừa",
     description:
-      "Spicy and sour soup with chicken, mushrooms, and herbs.",
+      "Spicy and sour soup with mushrooms and herbs — choose chicken or tofu.",
     price: 8.95,
     tags: [],
+    availableFlavors: COCONUT_SOUP_PROTEIN,
     availableAddons: STARTER_SOUP_ADDONS,
   },
   {
@@ -1373,7 +1381,7 @@ export const menuItems: MenuItem[] = ([
     categoryId: "drinks",
     name: "Soft Drink",
     description:
-      "Canned soft drink. Choose brand — Coke, Diet Coke, Pepsi, Diet Pepsi, Fuze, root beer, ginger ale, or Crush (orange, grape, or cream soda).",
+      "Canned soft drink. Choose brand — Coke, Coke Zero, Diet Coke, Pepsi, Diet Pepsi, Fuze, root beer, ginger ale, or Crush (orange, grape, or cream soda).",
     price: 1.75,
     tags: ["vegetarian", "vegan"],
     availableFlavors: SOFT_DRINK_FLAVORS,

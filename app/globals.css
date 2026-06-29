@@ -68,6 +68,30 @@ a {
   }
 }
 
+/* Full-screen new-order alert: pulses the green overlay's opacity so the board
+   visibly flashes until the order is acknowledged. */
+@keyframes dashboard-new-flash {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.animate-dashboard-new-flash {
+  animation: dashboard-new-flash 1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Reduced motion: hold a steady translucent green instead of flashing. */
+  .animate-dashboard-new-flash {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
 @keyframes toast-slide-in {
   from {
     opacity: 0;
