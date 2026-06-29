@@ -897,7 +897,7 @@ export const menuItems: MenuItem[] = ([
     vietnameseName: "Đậu Hũ Sả & Rau Cải Pad Thai",
     description:
       "Lemon grass tofu & mixed vegetable with pad thai.",
-    price: 19.5,
+    price: 16.5,
     tags: ["vegetarian", "vegan"],
     availableSizes: RICE_PLATE_BASE_OPTIONS,
     defaultSizeId: "base-pad-thai",
