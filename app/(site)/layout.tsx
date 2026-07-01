@@ -2,6 +2,7 @@ import { CartProvider } from "@/components/cart/cart-context";
 import { FloatingCart } from "@/components/cart/FloatingCart";
 import { Footer } from "@/components/layout/Footer";
 import { MainNav } from "@/components/layout/MainNav";
+import { ScrollToTopButton } from "@/components/layout/ScrollToTopButton";
 import { StickyOrderButton } from "@/components/layout/StickyOrderButton";
 import { RESTAURANT_NAME } from "@/lib/config";
 
@@ -21,6 +22,7 @@ export default function SiteLayout({
         </main>
         <Footer />
         <StickyOrderButton />
+        <ScrollToTopButton />
         <FloatingCart />
       </div>
     </CartProvider>

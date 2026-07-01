@@ -23,6 +23,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { flyToCart } from "@/lib/flyToCart";
 
 const dietaryTagLabels: Record<DietaryTag, string> = {
   spicy: "Spicy",
@@ -93,13 +94,18 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
     );
   }
 
-  function handleAddToCart(item: MenuItem) {
+  function handleAddToCart(
+    item: MenuItem,
+    event?: React.MouseEvent<HTMLButtonElement>,
+  ) {
     addItem(item, {
       selectedSize: getSelectedSize(item),
       selectedAddons: getSelectedAddons(item),
       selectedFlavor: getSelectedFlavor(item),
       notes: getNotes(item),
     });
+    const card = event?.currentTarget.closest("[data-fly-card]");
+    flyToCart(card?.querySelector("img"));
     setNotesByItem((prev) => {
       if (!prev[item.id]) return prev;
       const next = { ...prev };
@@ -252,7 +258,8 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                   <Card
                     key={item.id}
                     data-testid={`menu-card-${item.id}`}
-                    className="overflow-hidden"
+                    data-fly-card
+                    className="overflow-hidden hover:shadow-[var(--shadow-card-hover)]"
                   >
                     <CardBody className="flex flex-col gap-4 p-0 sm:flex-row sm:gap-0">
                       <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-gradient-to-br from-brand-50 via-amber-50 to-rose-50 sm:aspect-square sm:w-44 sm:self-start lg:w-52">
@@ -461,7 +468,7 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                             iconLeft={
                               <ShoppingCart className="h-4 w-4" aria-hidden />
                             }
-                            onClick={() => handleAddToCart(item)}
+                            onClick={(e) => handleAddToCart(item, e)}
                           >
                             {itemSoldOut ? "Sold out" : "Add to cart"}
                           </Button>

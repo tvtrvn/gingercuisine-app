@@ -20,6 +20,7 @@ import { ShoppingCart, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { flyToCart } from "@/lib/flyToCart";
 
 export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
   const { addItem, checkoutSheetOpen, setCheckoutSheetOpen } = useCart();
@@ -82,13 +83,18 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
     );
   }
 
-  function handleAddToCart(item: MenuItem) {
+  function handleAddToCart(
+    item: MenuItem,
+    event?: React.MouseEvent<HTMLButtonElement>,
+  ) {
     addItem(item, {
       selectedSize: getSelectedSize(item),
       selectedAddons: getSelectedAddons(item),
       selectedFlavor: getSelectedFlavor(item),
       notes: getNotes(item),
     });
+    const card = event?.currentTarget.closest("[data-fly-card]");
+    flyToCart(card?.querySelector("img"));
     setNotesByItem((prev) => {
       if (!prev[item.id]) return prev;
       const next = { ...prev };
@@ -197,10 +203,14 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
             {featuredItems.map((item, index) => {
               const itemSoldOut = item.available === false;
               return (
-              <li key={item.id} className="space-y-3 py-4 first:pt-0">
+              <li
+                key={item.id}
+                data-fly-card
+                className="space-y-3 py-4 first:pt-0"
+              >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
                   <div
-                    className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-neutral-200 bg-gradient-to-br from-brand-50 to-amber-50 shadow-sm sm:aspect-square sm:h-28 sm:w-28 sm:shrink-0"
+                    className="group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-neutral-200 bg-gradient-to-br from-brand-50 to-amber-50 shadow-[var(--shadow-card)] ring-1 ring-black/5 sm:aspect-square sm:h-28 sm:w-28 sm:shrink-0"
                     aria-hidden={!item.image}
                   >
                     {item.image ? (
@@ -209,7 +219,7 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
                         alt={item.name}
                         fill
                         className={cn(
-                          "object-cover",
+                          "object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]",
                           itemSoldOut && "grayscale",
                         )}
                         sizes="(max-width: 640px) 100vw, 7rem"
@@ -373,7 +383,7 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
                         disabled={itemSoldOut}
                         className="w-full sm:w-auto"
                         iconLeft={<ShoppingCart className="h-4 w-4" aria-hidden />}
-                        onClick={() => handleAddToCart(item)}
+                        onClick={(e) => handleAddToCart(item, e)}
                       >
                         {itemSoldOut ? "Sold out" : "Add to cart"}
                       </Button>
