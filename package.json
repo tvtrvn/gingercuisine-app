@@ -23,6 +23,7 @@
     "@vercel/blob": "^2.4.0",
     "libphonenumber-js": "^1.12.42",
     "lucide-react": "^1.14.0",
+    "motion": "^12.42.2",
     "next": "16.1.6",
     "prisma": "^6.19.2",
     "react": "19.2.3",

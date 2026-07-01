@@ -32,7 +32,7 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
-    optimizePackageImports: ["zod", "resend"],
+    optimizePackageImports: ["zod", "resend", "motion"],
   },
   async headers() {
     return [

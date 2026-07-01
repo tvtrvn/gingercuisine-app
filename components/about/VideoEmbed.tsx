@@ -77,14 +77,27 @@ export function VideoEmbed({
         className="relative aspect-video w-full overflow-hidden rounded-2xl bg-neutral-900 shadow-sm"
       >
         {active ? (
-          <iframe
-            src={iframeSrc}
-            title={title}
-            allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            className="absolute inset-0 h-full w-full border-0"
-          />
+          <>
+            {/* Poster underlay so the frame shows the dish instead of a black
+                box while the Vimeo iframe loads (esp. on mobile / slow links).
+                The iframe paints over it once ready. */}
+            <Image
+              src={posterSrc}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(min-width: 1024px) 720px, 100vw"
+              priority={false}
+            />
+            <iframe
+              src={iframeSrc}
+              title={title}
+              allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              className="absolute inset-0 h-full w-full border-0"
+            />
+          </>
         ) : (
           <button
             type="button"

@@ -270,7 +270,6 @@ export function dishAddonsFor(
 
 export const SMOOTHIE_FLAVORS = [
   { id: "strawberry", name: "Strawberry", price: 0.0 },
-  { id: "banana", name: "Banana", price: 0.0 },
   { id: "mango", name: "Mango", price: 0.0 },
   { id: "pineapple", name: "Pineapple", price: 0.0 },
   { id: "avocado", name: "Avocado", price: 0.0 },
@@ -1351,7 +1350,7 @@ export const menuItems: MenuItem[] = ([
     categoryId: "drinks",
     name: "Fruit Smoothie",
     vietnameseName: "Sinh Tố",
-    description: "Fresh fruit smoothie with condensed milk, sugar, and ice. Available in mango, strawberry, pineapple, avocado and banana.",
+    description: "Fresh fruit smoothie with condensed milk, sugar, and ice. Available in mango, strawberry, pineapple and avocado.",
     price: 6.95,
     tags: ["vegetarian"],
     availableFlavors: SMOOTHIE_FLAVORS,
