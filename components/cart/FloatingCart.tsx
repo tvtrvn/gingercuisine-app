@@ -8,7 +8,7 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 import { ShoppingBag, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function FloatingCart() {
   const pathname = usePathname();
@@ -23,12 +23,37 @@ export function FloatingCart() {
     setCheckoutSheetOpen,
   } = useCart();
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const prevItemCountRef = useRef(itemCount);
 
   const showMobileCheckoutSheet = isOrderPage && !isLg;
 
   useEffect(() => {
     if (isLg) setCheckoutSheetOpen(false);
   }, [isLg, setCheckoutSheetOpen]);
+
+  // Bounce the cart button when an item lands in it (paired with flyToCart's
+  // ~650ms arc, so the bounce reads as the item dropping in).
+  useEffect(() => {
+    const grew = itemCount > prevItemCountRef.current;
+    prevItemCountRef.current = itemCount;
+    if (!grew) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const fab = document.querySelector("[data-cart-fab]");
+    if (!fab) return;
+    const timer = window.setTimeout(() => {
+      fab.animate(
+        [
+          { transform: "scale(1)" },
+          { transform: "scale(1.18)" },
+          { transform: "scale(0.94)" },
+          { transform: "scale(1)" },
+        ],
+        { duration: 380, easing: "ease-out" },
+      );
+    }, 480);
+    return () => window.clearTimeout(timer);
+  }, [itemCount]);
 
   function handleFabClick() {
     if (showMobileCheckoutSheet) {
@@ -58,6 +83,7 @@ export function FloatingCart() {
           pill
           iconLeft={<ShoppingBag className="h-4 w-4" aria-hidden />}
           onClick={handleFabClick}
+          data-cart-fab
           className="shadow-lg shadow-neutral-900/15"
           aria-label={
             showMobileCheckoutSheet
