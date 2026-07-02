@@ -21,6 +21,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { flyToCart } from "@/lib/flyToCart";
+import { particleBurst } from "@/lib/particleBurst";
 
 export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
   const { addItem, checkoutSheetOpen, setCheckoutSheetOpen } = useCart();
@@ -95,6 +96,7 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
     });
     const card = event?.currentTarget.closest("[data-fly-card]");
     flyToCart(card?.querySelector("img"));
+    particleBurst(event?.currentTarget);
     setNotesByItem((prev) => {
       if (!prev[item.id]) return prev;
       const next = { ...prev };
