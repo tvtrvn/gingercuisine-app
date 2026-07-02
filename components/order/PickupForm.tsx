@@ -8,6 +8,7 @@ import {
   PHONE_DEFAULT_REGION,
   PRICES_NOTICE,
 } from "@/lib/config";
+import { particleBurst } from "@/lib/particleBurst";
 import { rememberOrder } from "@/lib/recentOrders";
 import { orderRequestSchema } from "@/lib/validation";
 import type { CountryCode } from "libphonenumber-js";
@@ -347,6 +348,7 @@ export function PickupForm({
         className="w-full"
         loading={isSubmitting}
         disabled={items.length === 0 || !isAcceptingOrders}
+        onClick={(e) => particleBurst(e.currentTarget)}
       >
         {isAcceptingOrders
           ? "Place pickup order"
