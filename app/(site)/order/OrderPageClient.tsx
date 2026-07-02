@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { PRICES_NOTICE } from "@/lib/config";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useScrollLock } from "@/lib/useScrollLock";
 import { AddonOption, MenuItem, SizeOption } from "@/lib/types";
 import { computeUnitPrice } from "@/lib/pricing";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -109,14 +110,7 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
     if (isLg) setCheckoutSheetOpen(false);
   }, [isLg, setCheckoutSheetOpen]);
 
-  useEffect(() => {
-    if (!checkoutSheetOpen || isLg) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [checkoutSheetOpen, isLg]);
+  useScrollLock(checkoutSheetOpen && !isLg);
 
   return (
     <div className="space-y-8">

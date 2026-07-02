@@ -29,7 +29,9 @@ test.describe.serial("menu management", () => {
     const card = customer.getByTestId(`menu-card-${BASE_ID}`);
     // The badge is a <span>; the disabled add button also reads "Sold out".
     await expect(card.locator("span", { hasText: "Sold out" })).toBeVisible();
-    await expect(card.getByRole("button", { name: "Sold out" })).toBeDisabled();
+    await expect(
+      card.getByRole("button", { name: "Sold out", exact: true }),
+    ).toBeDisabled();
     await customer.close();
   });
 
