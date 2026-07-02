@@ -276,7 +276,6 @@ export const SMOOTHIE_FLAVORS = [
 ];
 
 export const HOT_TEA_FLAVORS = [
-  { id: "black-tea", name: "Black tea", price: 0.0 },
   { id: "jasmine-green-tea", name: "Jasmine green tea", price: 0.0 },
 ];
 
@@ -1116,7 +1115,7 @@ export const menuItems: MenuItem[] = ([
     name: "Jicama Salad Roll (1)",
     vietnameseName: "Gỏi Cuốn Củ Sắn",
     description:
-      "Rice paper roll stuffed with jicama, herbs, and vermicelli, served with soy sauce.",
+      "Rice paper roll stuffed with jicama, peanuts, herbs, and vermicelli, served with soy sauce.",
     price: 3.50,
     tags: ["vegetarian", "vegan"],
   },
@@ -1360,7 +1359,7 @@ export const menuItems: MenuItem[] = ([
     categoryId: "drinks",
     name: "Hot Tea",
     description:
-      "House-brewed hot tea. Choose black tea or jasmine green tea.",
+      "House-brewed hot jasmine green tea.",
     price: 2.50,
     tags: ["vegetarian", "vegan"],
     availableFlavors: HOT_TEA_FLAVORS,
