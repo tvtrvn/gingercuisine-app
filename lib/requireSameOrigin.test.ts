@@ -47,7 +47,7 @@ describe("isSameOrigin — baseline (no configured site host)", () => {
 describe("isSameOrigin — production with NEXT_PUBLIC_SITE_URL set", () => {
   beforeEach(() => {
     process.env.VERCEL_ENV = "production";
-    process.env.NEXT_PUBLIC_SITE_URL = "https://gingercuisine.app";
+    process.env.NEXT_PUBLIC_SITE_URL = "https://gingercuisine.ca";
   });
 
   it("rejects a forged Origin+Host pair that don't match the configured site", () => {
@@ -61,7 +61,7 @@ describe("isSameOrigin — production with NEXT_PUBLIC_SITE_URL set", () => {
   it("accepts the real site Origin regardless of the inbound Host header", () => {
     expect(
       isSameOrigin(
-        fakeReq({ host: "some-vercel-node", origin: "https://gingercuisine.app" }),
+        fakeReq({ host: "some-vercel-node", origin: "https://gingercuisine.ca" }),
       ),
     ).toBe(true);
   });
@@ -70,7 +70,7 @@ describe("isSameOrigin — production with NEXT_PUBLIC_SITE_URL set", () => {
 describe("isSameOrigin — preview deploys keep Host-based matching", () => {
   it("accepts Origin matching Host when VERCEL_ENV is preview", () => {
     process.env.VERCEL_ENV = "preview";
-    process.env.NEXT_PUBLIC_SITE_URL = "https://gingercuisine.app";
+    process.env.NEXT_PUBLIC_SITE_URL = "https://gingercuisine.ca";
     expect(
       isSameOrigin(
         fakeReq({

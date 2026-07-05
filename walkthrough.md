@@ -6,7 +6,7 @@ A comprehensive guide for engineers (and the restaurant's future maintainer) who
 
 ## 1. Introduction
 
-This is **the live pickup-ordering platform for Ginger Cuisine** — a family Vietnamese restaurant in Toronto. The app is in production at <https://gingercuisine.app>, handling real customers and real (cash) money. Two surfaces share the same Next.js codebase:
+This is **the live pickup-ordering platform for Ginger Cuisine** — a family Vietnamese restaurant in Toronto. The app is in production at <https://gingercuisine.ca> (also served at gingercuisine.vercel.app), handling real customers and real (cash) money. Two surfaces share the same Next.js codebase:
 
 1. **Customer storefront** — `/`, `/menu`, `/about`, `/location`, `/contact`, `/order`, `/order/confirmation`. Customers browse the menu, build a cart, fill in pickup details, and submit a **pay-in-person** order. The server emails the customer a confirmation, generates a 6-character order code, and returns a confirmation page with a tokenized URL.
 
@@ -244,10 +244,13 @@ DASHBOARD_SESSION_SECRET=<random-32-byte-hex>   # 16+ chars required
 UPSTASH_REDIS_REST_URL=https://...upstash.io
 UPSTASH_REDIS_REST_TOKEN=...
 
-# Email (Resend)
+# Email (Resend). Local dev default is Resend's sandbox sender
+# (onboarding@resend.dev), which only delivers to the Resend account owner.
+# For real customer email, verify the domain in Resend first and use e.g.:
+#   RESEND_FROM_EMAIL=Ginger Cuisine <orders@gingercuisine.ca>
+#   RESEND_REPLY_TO=hello@gingercuisine.ca
 RESEND_API_KEY=re_...
-RESEND_FROM_EMAIL=Ginger Cuisine <orders@gingercuisine.app>
-RESEND_REPLY_TO=hello@gingercuisine.app
+RESEND_FROM_EMAIL=onboarding@resend.dev
 
 # Cron secret (only needed in production)
 CRON_SECRET=<random-32-byte-hex>
@@ -301,7 +304,7 @@ Every Monday, Vercel hits `/api/cron/heartbeat` with `Authorization: Bearer <CRO
 
 ### Resend
 
-- Verify the sending domain (DKIM, SPF, DMARC) — the `gingercuisine.app` SPF/DMARC records were already in place when this was wired up.
+- Verify the sending domain (DKIM, SPF, DMARC) in Resend before using a custom `RESEND_FROM_EMAIL`. As of 2026-07-05 local dev still uses Resend's sandbox sender (`onboarding@resend.dev`), which only delivers to the Resend account owner — check what production (Vercel env) uses and upgrade to a verified `gingercuisine.ca` sender for real customer delivery.
 - Sandbox first: send to one whitelist email, then flip to verified-domain mode once DKIM passes.
 
 ### Upstash
