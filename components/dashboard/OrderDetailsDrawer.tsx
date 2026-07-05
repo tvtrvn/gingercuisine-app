@@ -162,6 +162,27 @@ function OrderDetailsPanel({
             </div>
           )}
 
+          {isCancelled && (
+            <div>
+              <h3 className="text-sm font-semibold text-neutral-900">
+                Cancelled order
+              </h3>
+              <p className="mt-1 text-xs text-neutral-600">
+                Cancelled by mistake? Reopening puts it back on the board as a
+                new order.
+              </p>
+              <button
+                type="button"
+                onClick={() => onUpdateStatus(order.id, "new")}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
+                data-testid="reopen-order-drawer"
+              >
+                <Undo2 className="h-3.5 w-3.5" aria-hidden />
+                Reopen as new
+              </button>
+            </div>
+          )}
+
           <div>
             <h3 className="text-sm font-semibold text-neutral-900">Items</h3>
             <ul className="mt-2 divide-y divide-neutral-200 rounded-2xl border border-neutral-200 bg-white">

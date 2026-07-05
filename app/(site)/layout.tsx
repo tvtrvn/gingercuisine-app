@@ -4,7 +4,7 @@ import { Footer } from "@/components/layout/Footer";
 import { MainNav } from "@/components/layout/MainNav";
 import { ScrollToTopButton } from "@/components/layout/ScrollToTopButton";
 import { StickyOrderButton } from "@/components/layout/StickyOrderButton";
-import { RESTAURANT_NAME } from "@/lib/config";
+import { RESTAURANT_NAME, TAX_RATE } from "@/lib/config";
 
 export default function SiteLayout({
   children,
@@ -12,7 +12,9 @@ export default function SiteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <CartProvider>
+    // Server component: TAX_RATE here reads the real env value, so the cart's
+    // display totals always match what /api/order will charge.
+    <CartProvider taxRate={TAX_RATE}>
       <div className="flex min-h-screen flex-col">
         <MainNav restaurantName={RESTAURANT_NAME} />
         <main className="flex-1 pb-24 md:pb-8">

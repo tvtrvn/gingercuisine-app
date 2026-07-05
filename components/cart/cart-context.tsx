@@ -32,6 +32,9 @@ interface CartContextValue {
   subtotal: number;
   tax: number;
   total: number;
+  /** Effective tax rate — supplied by the server layout so the display total
+   *  always matches what the server will charge. */
+  taxRate: number;
   itemCount: number;
   lastAddedMessage: string | null;
   /** Mobile /order full checkout sheet (controlled by FloatingCart + Order page) */
@@ -41,7 +44,16 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({
+  children,
+  // TAX_RATE reads process.env.TAX_RATE, which is NOT inlined into client
+  // bundles — a server component must pass the real value down or the cart
+  // silently falls back to the default while the server charges the env rate.
+  taxRate = TAX_RATE,
+}: {
+  children: ReactNode;
+  taxRate?: number;
+}) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [lastAddedMessage, setLastAddedMessage] = useState<string | null>(null);
   const [checkoutSheetOpen, setCheckoutSheetOpen] = useState(false);
@@ -177,8 +189,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const { subtotal, tax, total } = useMemo(
-    () => computeCartTotals(items, TAX_RATE),
-    [items],
+    () => computeCartTotals(items, taxRate),
+    [items, taxRate],
   );
   const itemCount = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
@@ -193,6 +205,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     removeItem,
     duplicateItem,
     clearCart,
+    taxRate,
     subtotal,
     tax,
     total,

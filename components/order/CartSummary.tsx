@@ -1,7 +1,7 @@
 import { useCart } from "@/components/cart/cart-context";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody } from "@/components/ui/Card";
-import { CURRENCY, PAY_IN_PERSON_NOTICE, PRICES_NOTICE, TAX_RATE } from "@/lib/config";
+import { CURRENCY, PAY_IN_PERSON_NOTICE, PRICES_NOTICE } from "@/lib/config";
 import { formatCurrency } from "@/lib/utils";
 
 export function CartSummary() {
@@ -10,6 +10,7 @@ export function CartSummary() {
     subtotal,
     tax,
     total,
+    taxRate,
     updateItemQuantity,
     updateItemNotes,
     removeItem,
@@ -143,7 +144,7 @@ export function CartSummary() {
               </span>
             </div>
             <div className="flex justify-between text-neutral-700">
-              <span>Tax ({Math.round(TAX_RATE * 100)}%)</span>
+              <span>Tax ({Math.round(taxRate * 100)}%)</span>
               <span className="tabular-nums font-medium">
                 {formatCurrency(tax, CURRENCY)}
               </span>

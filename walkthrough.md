@@ -18,10 +18,11 @@ Defensive features that make this *production*:
 
 - **HMAC-SHA256 signed `HttpOnly` session cookies** with constant-time signature verification.
 - **Per-order 128-bit `viewToken`** so customers can't enumerate other people's orders by guessing the 6-char code.
-- **Upstash Redis sliding-window rate limits** on 7 buckets (login, order create, order status poll, contact, dashboard writes, dashboard searches, dashboard reads). In production, a missing Upstash config now hard-refuses requests rather than silently disabling protection.
+- **Upstash Redis sliding-window rate limits** on 4 buckets that are exposed to the public internet or defend a shared secret (login, order create, order status poll, contact). In production, a missing Upstash config now hard-refuses requests rather than silently disabling protection.
+- **In-memory rate limits** on the authenticated staff-dashboard buckets (reads, writes, search) — deliberately kept off Redis to protect the Upstash free tier from the board's poll traffic; per-serverless-instance and reset on cold start, an accepted trade-off since these routes require a valid staff session.
 - **CSRF via same-origin check** on every mutating POST.
 - **Server-side cart re-pricing** — the client's `price` / `unitPrice` fields are *ignored*; menu data is the source of truth.
-- **Hardened HTTP headers** declared in `next.config.ts` / `vercel.json` (HSTS preload, X-Frame-Options DENY, nosniff, Permissions-Policy).
+- **Hardened HTTP headers** declared in `next.config.mjs` (HSTS preload, X-Frame-Options DENY, nosniff, Permissions-Policy); `vercel.json` only holds the cron schedule.
 - **Weekly heartbeat cron** that pings MongoDB and Upstash Redis so neither free tier auto-pauses/archives from inactivity.
 
 ---
@@ -44,10 +45,12 @@ Defensive features that make this *production*:
 |  /api/order     — POST: create order (pay-in-person)
 |  /api/order/status              — GET: poll status |
 |  /api/order/availability        — GET: open/closed |
-|  /api/dashboard/orders          — GET/PATCH        |
-|  /api/dashboard/orders/[id]     — PATCH/DELETE     |
+|  /api/dashboard/orders          — GET               |
+|  /api/dashboard/orders/[orderId] — GET/PATCH        |
 |  /api/dashboard/orders/search   — GET              |
 |  /api/dashboard/orders/pause    — POST             |
+|  /api/dashboard/menu            — GET/POST/PATCH/DELETE |
+|  /api/dashboard/menu/upload     — POST              |
 |  /api/dashboard/login           — POST             |
 |  /api/dashboard/logout          — POST             |
 |  /api/contact                   — POST             |
@@ -73,14 +76,14 @@ Defensive features that make this *production*:
 3. On `/order`, `PickupForm` collects name/phone/email/pickup time.
 4. Submit → `POST /api/order` with selections only (no prices).
 5. Server: same-origin check → rate-limit (10/min/IP) → availability gate (hours + staff pause) → `priceCart()` recomputes from `menu.ts` → `createOrder()` writes to Mongo with a fresh `orderCode` + `viewToken` → `sendOrderEmail()` fires async.
-6. 201 → `/order/confirmation?id=...&t=<viewToken>` page polls `/api/order/status` for live status updates.
+6. 201 → `/order/confirmation?orderId=...&token=<viewToken>` page polls `/api/order/status` for live status updates.
 
 **Staff dashboard flow:**
 
 1. `/dashboard/login` → `POST /api/dashboard/login` with password.
 2. Server validates with `timingSafeEqual`, sets `gc_dashboard_session=<HMAC-signed token>` cookie (HttpOnly, Secure, SameSite=Lax, 12h TTL).
 3. `/dashboard` server-renders the initial order list (active + recent 24h).
-4. `OrderBoard` client component polls `GET /api/dashboard/orders` every 6 seconds.
+4. `OrderBoard` client component polls `GET /api/dashboard/orders` every `DASHBOARD_POLL_INTERVAL_MS` (default 10 seconds).
 5. New order detected → `useNewOrderAlarm` plays a chime, `NewOrderToast` slides in.
 6. Tap a card → status PATCH; the audit timestamp (`acknowledgedAt`, `readyAt`, …) is set server-side.
 
@@ -120,8 +123,8 @@ gingercuisine-app/
 ├── RESUME.md                              # Engineering highlights for résumé
 ├── README.md
 ├── package.json
-├── next.config.ts / next.config.mjs       # Headers, image domains
-├── vercel.json                            # Cron + extra header policies
+├── next.config.mjs                        # Headers, image domains
+├── vercel.json                            # Cron schedule only
 ├── instrumentation.ts                     # Startup logs (warns if rate-limit unconfigured)
 ├── prisma/
 │   └── schema.prisma                      # Order + RestaurantSetting models
@@ -139,7 +142,8 @@ gingercuisine-app/
 │   ├── restaurantSettings.ts              # KV store for runtime flags
 │   ├── hours.ts                           # Toronto-local business hours
 │   ├── email.ts                           # Resend wrapper + template
-│   ├── rateLimit.ts                       # Upstash limiters (login/order/contact/dashboard)
+│   ├── rateLimit.ts                       # Upstash limiters (login/order/contact/order-status) + in-memory dashboard limiters
+│   ├── menuStore.ts                       # Owner menu overrides/custom items + audit log (RestaurantSetting JSON)
 │   ├── dashboardAuth.ts                   # HMAC token issue + verify + password check
 │   ├── requireDashboardSession.ts         # Server helper to gate routes
 │   ├── requireSameOrigin.ts               # CSRF same-origin check
@@ -163,6 +167,8 @@ gingercuisine-app/
 │   │   ├── layout.tsx                     # DashboardTopBar
 │   │   ├── login/page.tsx                 # Server page
 │   │   ├── login/LoginForm.tsx            # Client form
+│   │   ├── menu/page.tsx                  # Owner menu-management panel
+│   │   ├── menu/history/page.tsx          # Menu change/audit history
 │   │   └── page.tsx                       # Server-renders board with initial orders
 │   └── api/
 │       ├── order/route.ts                 # POST: create
@@ -174,9 +180,11 @@ gingercuisine-app/
 │           ├── login/route.ts             # POST: password → cookie
 │           ├── logout/route.ts            # POST
 │           ├── orders/route.ts            # GET: list active + recent
-│           ├── orders/[orderId]/route.ts  # PATCH: status / note
+│           ├── orders/[orderId]/route.ts  # GET / PATCH: single order status / note
 │           ├── orders/search/route.ts     # GET: search by name/phone/code
-│           └── orders/pause/route.ts      # POST: toggle accepting flag
+│           ├── orders/pause/route.ts      # POST: toggle accepting flag
+│           ├── menu/route.ts              # GET/POST/PATCH/DELETE: overrides + custom items
+│           └── menu/upload/route.ts       # POST: image upload to Vercel Blob
 └── components/
     ├── layout/                            # MainNav, Footer, StickyOrderButton
     ├── ui/                                # Button, Card, Input, Skeleton, …
@@ -321,7 +329,7 @@ Pages:
 - `/location` — Address, hours, embedded map.
 - `/contact` — `POST /api/contact` form.
 - `/order` — `<PickupForm>` + `<CartSummary>`. Submits to `/api/order`.
-- `/order/confirmation?id=<orderCode>&t=<viewToken>` — `<OrderStatusTracker>` polls `/api/order/status?id=...&t=...` every few seconds.
+- `/order/confirmation?orderId=<orderCode>&token=<viewToken>` — `<OrderStatusTracker>` polls `/api/order/status?orderId=...&token=...` every few seconds.
 
 ### 7.3 `app/dashboard/*` — staff surface
 
@@ -336,14 +344,15 @@ Pages:
 
 Walk through what a single order POST does in order:
 
-1. **Same-origin check** (`isSameOrigin(req)`). Rejects any POST whose `Origin` doesn't match the deployed domain. CSRF defense, since `HttpOnly` cookies still travel cross-origin if the path is open.
-2. **Rate limit** by IP — 10 orders/minute. `429 + Retry-After` on hit.
-3. **Availability gate** — both **business hours** (`hours.ts` uses Toronto local time, handles DST and holidays) **and** the **staff pause flag** (`RestaurantSetting` doc). Both checks happen *before* JSON parsing so closed-time POSTs are cheap.
-4. **Zod validation** of the body via `orderRequestSchema` — strict shape: `items[].menuItemId`, `quantity`, optional `notes/selectedSizeId/selectedAddonIds/selectedFlavorId`, plus `pickupDetails`. Note what's **absent**: no `price`, no `unitPrice`, no `total`. The client can't push prices.
-5. **Server-side re-pricing** (`priceCart(selections)`) reads `data/menu.ts` and rebuilds every line item. Throws `PricingError` if a referenced item/size/addon/flavor doesn't exist.
-6. **Order code generation with retry** — `generateOrderCode()` returns a 6-char Crockford base32 string (~32^6 = ~1B values, but the live history is small so collisions are vanishingly rare). On Mongo's `P2002` unique-constraint violation, the loop retries up to 3 times. Anything else bubbles up.
-7. **Email** (`sendOrderEmail`) — fire-and-forget; failure is logged but the order POST still returns 201. Email-delivery flakiness must not lose orders.
-8. **Response** — `{ orderId, viewToken, totals, paymentMethod, paymentStatus }`. The `viewToken` is the magic that protects the confirmation page from being enumerable.
+1. **Same-origin check** (`isSameOrigin(req)`). Rejects any POST whose `Origin` (or `Referer`, as a fallback) doesn't match the expected host. CSRF defense, since `HttpOnly` cookies still travel cross-origin if the path is open. In production the expected host is anchored to `NEXT_PUBLIC_SITE_URL` (`lib/requireSameOrigin.ts`) rather than the inbound `Host` header, which an attacker can influence; preview/local deploys fall back to `Host`-based matching.
+2. **Rate limit** by IP — 10 orders/minute (Upstash-backed). `429 + Retry-After` on hit.
+3. **Availability gate** — both **business hours** (`hours.ts` uses Toronto local time via an env-driven weekly schedule, handles DST) **and** the **staff pause flag** (`RestaurantSetting` doc). Both checks happen *before* JSON parsing so closed-time POSTs are cheap.
+4. **Body parsing** — malformed JSON is caught and returns `400 "Invalid request body."` rather than a 500.
+5. **Zod validation** of the body via `orderRequestSchema` — strict shape: `items[].menuItemId`, `quantity`, optional `notes/selectedSizeId/selectedAddonIds/selectedFlavorId`, plus `pickupDetails`. Note what's **absent**: no `price`, no `unitPrice`, no `total`. The client can't push prices. `pickupTime` (when `pickupTimeOption: "later"`) must match `HH:MM` and can't be in the past in Toronto local time.
+6. **Server-side re-pricing** (`priceCart(selections)`) reads `data/menu.ts` and rebuilds every line item. Throws `PricingError` if a referenced item/size/addon/flavor doesn't exist.
+7. **Order code generation with retry** — `generateOrderCode()` returns a 6-char Crockford base32 string (~32^6 = ~1B values, but the live history is small so collisions are vanishingly rare). On Mongo's `P2002` unique-constraint violation, the loop retries up to 3 times. Anything else bubbles up.
+8. **Email** (`sendOrderEmail`) — fire-and-forget; failure is logged but the order POST still returns 201. Email-delivery flakiness must not lose orders.
+9. **Response** — `{ orderId, viewToken, totals, paymentMethod, paymentStatus }`. The `viewToken` is the magic that protects the confirmation page from being enumerable.
 
 ### 7.5 `lib/pricing.ts` — why client prices don't matter
 
@@ -361,10 +370,10 @@ Why 6 chars: it fits on a paper receipt without wrapping, staff can read it back
 
 Wraps Prisma. Key entrypoints:
 
-- **`createOrder({ orderCode, items, pickupDetails, subtotal, tax, total })`** — `randomBytes(16).toString("base64url")` generates the 128-bit `viewToken`; Prisma `prisma.order.create` writes the document.
+- **`createOrder({ orderCode, items, pickupDetails, subtotal, tax, total })`** — `randomBytes(16).toString("hex")` generates the 128-bit `viewToken` as a 32-char hex string; Prisma `prisma.order.create` writes the document.
 - **`listRecentAndActive({ windowHours, limit })`** — single Mongo find using the `orderStatus + createdAt DESC` composite index. Returns active orders (`new | acknowledged | ready`) regardless of age, plus any other orders within `windowHours`. Limit 500 so a slow night doesn't load a year of history.
-- **`updateStatus(orderCode, nextStatus)`** — sets the status + the matching audit timestamp (`acknowledgedAt`, `readyAt`, etc.). Old `"preparing"` documents (the deprecated status) are normalized to `"acknowledged"` on read.
-- **`getOrderByCodeWithToken(orderCode, viewToken)`** — the customer-facing lookup. Uses `timingSafeString.equal()` to compare tokens so an attacker can't time-side-channel guess tokens by status response timing.
+- **`updateOrder(orderCode, fields)`** — sets `orderStatus`/`paymentStatus`/`staffNote` and stamps the matching audit timestamp (`acknowledgedAt`, `readyAt`, etc.), clearing any "ahead" timestamps on a reverse transition. Old `"preparing"` documents (the deprecated status) are normalized to `"acknowledged"` on read via `normalizeOrderStatus`.
+- **`getOrderById(id)`** — the lookup used by both the customer-facing status route and the confirmation page. Callers separately compare the returned `order.viewToken` against the caller-supplied token with `timingSafeEqualStr` (`lib/timingSafeString.ts`) so an attacker can't time-side-channel guess tokens by response timing.
 
 ### 7.8 `lib/orderingStatus.ts` + `lib/hours.ts` + `lib/restaurantSettings.ts` — the open/closed gate
 
@@ -372,35 +381,43 @@ Three pieces compose into one `getOrderingAvailability()` answer:
 
 | Layer | Source | Affects |
 |---|---|---|
-| Business hours | `lib/hours.ts` — Toronto-local weekly schedule + holiday list | `closed`-reason if outside |
+| Business hours | `lib/hours.ts` — Toronto-local weekly schedule, driven by the `HOURS_SCHEDULE` env var (7-entry CSV, Monday→Sunday) | `before_hours` / `after_hours` / `closed_today` / `last_call` reasons |
 | Staff pause toggle | `RestaurantSetting{key: "online_ordering_paused"}` doc | `staff-paused` reason if on |
 | Composite answer | `lib/orderingStatus.ts::getOrderingAvailability()` | `accepting`, `reason`, `message` |
 
 `POST /api/dashboard/orders/pause` flips the `online_ordering_paused` setting. The customer storefront's `<OrderingAvailabilityBanner>` polls `/api/order/availability` and shows the appropriate message ("Kitchen is on break — try again in 20 min").
 
-Holidays are a hand-maintained list; an enhancement note in the PRD calls for a small admin UI but for a single-restaurant scale, a code change + redeploy is fine.
+There is no hand-maintained holiday list. `WEEKLY_SCHEDULE` is parsed once from `HOURS_SCHEDULE` at module load (falling back to 11:00 AM – 11:00 PM every day, or per-invalid-day, if the env var is absent or malformed); a one-off closure means either setting a `closed` day in that schedule for the deploy or using the staff pause toggle for same-day closures.
 
-### 7.9 `lib/rateLimit.ts` — seven limiters, one factory, one shared key helper
+### 7.9 `lib/rateLimit.ts` — four Redis-backed limiters, three in-memory, one shared key helper
 
-`makeLimiter(factory)` returns a `{ limit(key) }` object. The factory takes a Redis instance and returns an `@upstash/ratelimit` `Ratelimit` configured per its bucket.
+`makeLimiter(factory)` returns a `{ limit(key) }` object. The factory takes a Redis instance and returns an `@upstash/ratelimit` `Ratelimit` configured per its bucket. This backs only the buckets that are either unauthenticated (public internet) or protect a shared secret:
 
-| Limiter | Window | Why |
+| Limiter (Upstash-backed) | Window | Why |
 |---|---|---|
 | `loginRateLimit` | 5 / 1 min | Brute-force defense on the staff password |
 | `orderRateLimit` | 10 / 1 min | Stop accidental double-tap submits and casual abuse |
 | `contactRateLimit` | 5 / 10 min | Stop spam |
+| `orderStatusRateLimit` | 60 / 1 min | Customer poll, token-gated |
+
+The three authenticated dashboard buckets use `makeInMemoryLimiter(max, windowMs)` instead — a fixed-window counter kept in a `Map`, no Redis call at all:
+
+| Limiter (in-memory) | Window | Why |
+|---|---|---|
 | `dashboardWriteRateLimit` | 60 / 1 min | Staff can tap fast but not infinitely |
 | `dashboardReadRateLimit` | 120 / 1 min | Board polling + single-order detail GETs; stops a hijacked cookie from scraping the whole history |
 | `dashboardSearchRateLimit` | 30 / 1 min | Search hits the DB harder than the board fetch |
-| `orderStatusRateLimit` | 60 / 1 min | Customer poll, token-gated |
+| `availabilityRateLimit` | 60 / 1 min | Public `/api/order/availability` poll — unauthenticated but hit every 30s by every visitor, so it's also kept off Redis |
 
-If `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` aren't set:
+This split is a deliberate cost trade-off: the dashboard's high-frequency board poll (every `DASHBOARD_POLL_INTERVAL_MS`) would otherwise burn through the Upstash free-tier command quota. In-memory limits are **per-serverless-instance**, not global — they reset on a cold start and don't coordinate across concurrent instances. That's accepted here because these routes all require a valid staff session first; the goal is to bound a hijacked session's request rate, not enforce a precise global quota.
+
+For the four Upstash-backed limiters, if `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` aren't set:
 - **Dev** (`NODE_ENV !== "production"`): each limiter no-ops and warns *once*. Same one-time boot warning from `instrumentation.ts` as before.
 - **Prod** (`NODE_ENV === "production"`): each limiter returns `success: false` so the handler emits `429 Too Many Requests`. A misconfigured prod deploy fails loudly instead of silently disabling every rate limit.
 
 `getClientIp(req)` reads `X-Forwarded-For` (first hop) then `X-Real-IP` then falls back to `"unknown"` — un-identifiable requests share one bucket, which over-limits bots but is intentional.
 
-`dashboardRateLimitKey(req)` is the shared key builder for every `/api/dashboard/*` limiter call: it hashes the session cookie (`sha256` → 32-char hex prefix) so per-session keys never embed the raw token, and falls back to `getClientIp(req)` when the cookie isn't present yet (e.g. login). One whole restaurant behind a single NAT therefore gets one bucket *per tablet session*, not one bucket per public IP.
+`dashboardRateLimitKey(req)` is the shared key builder for every `/api/dashboard/*` limiter call (Redis or in-memory): it hashes the session cookie (`sha256` → 32-char hex prefix) so per-session keys never embed the raw token, and falls back to `getClientIp(req)` when the cookie isn't present yet (e.g. login). One whole restaurant behind a single NAT therefore gets one bucket *per tablet session*, not one bucket per public IP.
 
 ### 7.10 `lib/dashboardAuth.ts` — HMAC-signed session cookies
 
@@ -441,26 +458,27 @@ export async function hasDashboardSession(): Promise<boolean> {
 }
 ```
 
-Used by `/dashboard/page.tsx` (server component). For API routes, the equivalent helper throws a typed `UnauthorizedError` that the handler catches and converts to 401. The dashboard layout never renders for unauth'd users — there is no client-side flash.
+Used by `/dashboard/page.tsx` (server component). For API routes, `requireDashboardApi()` is the equivalent guard: it calls `hasDashboardSession()` and, if false, *returns* a `NextResponse.json({ error: "Unauthorized" }, { status: 401 })` (not throws). Every dashboard API handler starts with `const unauthorized = await requireDashboardApi(); if (unauthorized) return unauthorized;` — a guard-return, not a typed exception. The dashboard layout never renders for unauth'd users — there is no client-side flash.
 
 ### 7.13 `components/dashboard/OrderBoard.tsx` — the 572-line client
 
 The biggest single component in the codebase. Responsibilities:
 
 - Holds `orders[]` and `availability` in client state (seeded by the server).
-- Polls `GET /api/dashboard/orders` every `pollIntervalMs` (default 6000ms). On poll, diffs incoming vs current to detect new orders.
+- Polls `GET /api/dashboard/orders` every `pollIntervalMs` (from `DASHBOARD_POLL_INTERVAL_MS`, default 10 seconds). On poll, diffs incoming vs current to detect new orders. Polling keeps running while staff are searching — only the *rendering* switches to search results, so a forgotten open search box can't silently suppress the new-order alarm.
 - New order detected → `useNewOrderAlarm` plays the chime (single-cycle, user-interaction-gated for browser autoplay policy), `NewOrderToast` slides in for 8s.
 - Renders cards in two sections: **Active** (new/acknowledged/ready) and **Recent** (completed/cancelled). Active updates with a layout animation.
-- Per-card actions (`Acknowledge`, `Ready`, `Complete`, `Cancel`) → `PATCH /api/dashboard/orders/<orderId>` with the new status. Optimistic UI: state updates locally, then sync from server on next poll. On API failure, the optimistic update is rolled back.
+- Per-card actions (`Acknowledge`, `Ready`, `Complete`, `Cancel`) → `PATCH /api/dashboard/orders/<orderId>` with the new status. Optimistic UI: state updates locally, then sync from server on next poll. On API failure, the optimistic update (board, search results, and the open drawer) is rolled back and an inline error is shown.
+- Cancelled orders are not a hard dead end: `OrderCard` and `OrderDetailsDrawer` both surface a **"Reopen as new"** action that PATCHes the order back to `orderStatus: "new"`.
 - `OrderDetailsDrawer` opens on tap — shows full cart, customer name/phone, staff note edit.
 - `<PauseOrdersControl>` toggles the staff-pause flag; the change reflects immediately in the customer banner on next poll.
 - Tablet ergonomics: 44px+ hit targets, big text, sound chime, no hover states.
 
 ### 7.14 `components/cart/cart-context.tsx` — React Context cart
 
-Singleton context exposing `items`, `subtotal`, `itemCount`, `addItem`, `updateItemQuantity`, `updateItemNotes`, `removeItem`, `duplicateItem`, `clearCart`, plus `checkoutSheetOpen` for the mobile sheet. Live in memory only — closing the tab clears the cart, by design (no zombie carts to confuse customers). The provider wraps everything inside `app/layout.tsx`.
+Singleton context exposing `items`, `subtotal`, `tax`, `total`, `taxRate`, `itemCount`, `addItem`, `updateItemQuantity`, `updateItemNotes`, `removeItem`, `duplicateItem`, `clearCart`, plus `checkoutSheetOpen` for the mobile sheet. Live in memory only — closing the tab clears the cart, by design (no zombie carts to confuse customers). The provider wraps everything inside `app/(site)/layout.tsx`.
 
-Cart math runs client-side too for *display only*; the server re-prices on submit. So the customer sees a UI total while typing, but the dollars that get charged are computed authoritatively.
+Cart math runs client-side too for *display only*; the server re-prices on submit. So the customer sees a UI total while typing, but the dollars that get charged are computed authoritatively. `TAX_RATE` (from `lib/config.ts`) reads `process.env.TAX_RATE`, which is **not** inlined into client bundles — so the server layout passes the resolved `taxRate` prop into `<CartProvider>` explicitly, rather than letting the client fall back to the bundled default. This keeps the cart's displayed tax in sync with whatever rate the server will actually charge.
 
 ### 7.15 `app/api/cron/heartbeat/route.ts` — keeping Atlas + Upstash awake
 
@@ -486,6 +504,19 @@ export function register() {
 ```
 
 Next.js calls this on first request (or at boot in some runtimes). The single console.warn in production is enough to make me notice if I shipped a deploy without the env var.
+
+### 7.17 `lib/menuStore.ts` + `/dashboard/menu` — owner menu management
+
+Post-dates the original build: lets the owner edit the menu from `/dashboard/menu` without a code deploy, layered on top of the still-hardcoded `data/menu.ts` catalog.
+
+- **Storage** — no schema migration. Everything lives as JSON in the existing `RestaurantSetting` key/value table, under two keys:
+  - `menuCustomizations` — `{ overrides: Record<itemId, MenuOverride>, customItems: MenuItem[] }`.
+  - `menuAuditLog` — an append-only, capped (200-entry) log of every change, each entry hashing the actor's session cookie rather than storing it raw.
+- **`MenuOverride`** — per base item: `available`, `price`, `name`, `description`, and `soldOutOptionIds` (marks specific size/add-on/flavor options sold out without touching the rest of the item).
+- **`getMenuItems()`** — the single merge seam every consumer reads through (customer pages *and* `priceCart`): base catalog with overrides applied via `mergeItem()`, followed by owner-added custom items. Reads are fail-open — a DB blip returns the plain hardcoded menu rather than an empty site.
+- **Mutations** (`upsertOverride`, `addCustomItem`, `updateCustomItem`, `deleteCustomItem`) are read-modify-write on the single customizations document — acceptable because dashboard writes are low-frequency and single-owner (same trade-off as the pause toggle). Each appends an audit entry via `diffOverride()` (pure, unit-tested), which diffs the incoming patch against the item's *effective* current state so a no-op save leaves no log noise.
+- **API** — `app/api/dashboard/menu/route.ts`: `GET` (merged menu for the dashboard UI), `POST` (add custom item), `PATCH` (override a base item or edit a custom item — discriminated body), `DELETE` (remove a custom item). All mutating verbs gate through `isSameOrigin` → `requireDashboardApi()` → `dashboardWriteRateLimit`. `app/api/dashboard/menu/upload/route.ts` (`POST`) uploads a photo to Vercel Blob for custom/overridden items; swapping or deleting a photo best-effort deletes the old Blob object (`bestEffortDeleteBlob`) so cleanup failures never block the edit itself.
+- **Pages** — `/dashboard/menu` (the edit panel) and `/dashboard/menu/history` (renders `menuAuditLog`, falling back to each entry's `summary` string when structured `changes` aren't present on legacy entries).
 
 ---
 
@@ -514,7 +545,7 @@ model Order {
   total             Float
 
   staffNote         String?
-  viewToken         String?                     # 128-bit base64url
+  viewToken         String?                     # 128-bit, 32-char hex
 
   acknowledgedAt    DateTime?
   readyAt           DateTime?
@@ -549,19 +580,21 @@ The composite `(orderStatus, createdAt DESC)` index is what keeps the dashboard'
 
 | Threat | Mitigation |
 |---|---|
-| **CSRF on POSTs** | `isSameOrigin(req)` check on every mutating route |
-| **Brute-force login** | `loginRateLimit` (5/min/IP) + sha256-then-`timingSafeEqual` password compare (no length leak) |
+| **CSRF on POSTs** | `isSameOrigin(req)` check on every mutating route; production anchors the expected host to `NEXT_PUBLIC_SITE_URL` instead of the attacker-influenceable `Host` header |
+| **Brute-force login** | `loginRateLimit` (5/min/IP, Upstash-backed) + sha256-then-`timingSafeEqual` password compare (no length leak) |
 | **Cookie forgery** | HMAC-SHA256 signed session token, `HttpOnly`, `Secure`, `SameSite=Lax` |
 | **Session theft** | `HttpOnly` cookie + Vercel's HTTPS-only domain |
-| **Order enumeration** | 128-bit `viewToken` checked with `timingSafeEqual` |
-| **Price tampering** | Server re-prices cart from `menu.ts`; client prices ignored |
-| **Spam orders** | `orderRateLimit` (10/min/IP) + prod-only fail-closed if Redis env missing (returns 429 instead of silently disabling) |
-| **Dashboard scrape via hijacked session** | `dashboardReadRateLimit` (120/min/session) on every dashboard GET; `dashboardRateLimitKey` hashes cookie so it's per-tablet, not per-NAT |
+| **Order enumeration** | 32-char hex `viewToken` (128-bit) checked with `timingSafeEqualStr` |
+| **Price tampering** | Server re-prices cart from the merged menu (`getMenuItems()`); client prices ignored |
+| **Spam orders** | `orderRateLimit` (10/min/IP, Upstash-backed) + prod-only fail-closed if Redis env missing (returns 429 instead of silently disabling) |
+| **Dashboard scrape via hijacked session** | `dashboardReadRateLimit` (120/min/session, **in-memory per serverless instance** — not Redis) on every dashboard GET; `dashboardRateLimitKey` hashes cookie so it's per-tablet, not per-NAT. Accepted trade-off: caps reset on cold start and don't coordinate across instances, but the route is already gated by `requireDashboardApi()` |
+| **Unauthenticated route abuse** | `dashboardWriteRateLimit`, `dashboardSearchRateLimit`, and the public `availabilityRateLimit` are the same in-memory pattern — kept off Upstash specifically to protect the free-tier quota from the dashboard's poll traffic |
 | **Email header / subject injection** | `sanitizeOneLine` strips CR/LF from any user-supplied string interpolated into `Resend` headers or single-line body fields |
 | **Storefront silently accepts orders during DB outage** | `/api/order/availability` fail-closed catch returns `accepting: false` with `degraded: true` |
-| **Spam contact** | `contactRateLimit` (5/10min/IP) |
+| **Spam contact** | `contactRateLimit` (5/10min/IP, Upstash-backed) |
 | **Cron endpoint abuse** | `Authorization: Bearer <CRON_SECRET>` checked with `timingSafeEqual` |
-| **Header sniffing** | HSTS preload, `X-Frame-Options DENY`, `X-Content-Type-Options nosniff`, Permissions-Policy declared in `next.config.ts` |
+| **Malformed request bodies** | `/api/order` and `/api/contact` catch JSON parse failures and return `400` instead of a 500 |
+| **Header sniffing** | HSTS preload, `X-Frame-Options DENY`, `X-Content-Type-Options nosniff`, Permissions-Policy declared in `next.config.mjs` |
 | **Stripe key leak** | N/A — Stripe was removed; no payment secrets in the codebase |
 
 Every hand-rolled comparison uses `timingSafeEqual` on Buffer-decoded inputs. No `===` on secrets.
@@ -596,12 +629,12 @@ Browser                      Next.js (Vercel)              MongoDB         Upsta
    |                             |-- sendOrderEmail (async) ------------------------->         |
    |<-- 201 + body --------------|                            |                |               |
    |                             |                            |                |               |
-   |-- navigate /order/confirmation?id=…&t=…                  |                |               |
+   |-- navigate /order/confirmation?orderId=…&token=…         |                |               |
    |                             |                            |                |               |
    |-- GET /api/order/status     |                            |                |               |
-   |   (every 8s, with viewToken)|                            |                |               |
+   |   (every 10s, with orderId+token)                        |                |               |
    |                             |-- orderStatusRateLimit --------------------->|              |
-   |                             |-- getOrderByCodeWithToken ->| timingSafeEq |                |
+   |                             |-- getOrderById -----------> | timingSafeEqualStr(viewToken)|
    |                             |<-- order ------------------|                |               |
    |<-- {orderStatus, …} --------|                            |                |               |
 ```
@@ -611,19 +644,21 @@ Staff acknowledges:
 ```
 iPad                         Next.js                       MongoDB
  |                              |                            |
- |-- (already polling /api/dashboard/orders every 6s) -------|
+ |-- (already polling /api/dashboard/orders every 10s, DASHBOARD_POLL_INTERVAL_MS) --|
  |                              |                            |
  |-- tap "Acknowledge" -------->|                            |
- |-- PATCH /api/dashboard/orders/<code>                      |
+ |-- PATCH /api/dashboard/orders/<orderId>                   |
  |   { orderStatus: "acknowledged" }                         |
- |                              |-- hasDashboardSession      |
- |                              |-- dashboardWriteRateLimit  |
- |                              |-- updateStatus             |
+ |                              |-- requireDashboardApi()    |
+ |                              |   (returns 401 if no session, doesn't throw) |
+ |                              |-- dashboardWriteRateLimit (in-memory)       |
+ |                              |-- updateOrder               |
  |                              |--------------------------->| UPDATE order
  |                              |                            |  set acknowledgedAt, orderStatus
  |                              |<-- ok                      |
  |<-- 200 -----------------------|                            |
- |   optimistic UI already showed acknowledged; reconciled   |
+ |   optimistic UI already showed acknowledged; reconciled;  |
+ |   rolled back + error shown if the PATCH failed           |
 ```
 
 ---
@@ -682,7 +717,7 @@ iPad                         Next.js                       MongoDB
 
 **Toronto-local hours (`lib/hours.ts`):** The business-hours schedule, evaluated in `America/Toronto` time zone. Handles DST automatically via the standard `Intl` API.
 
-**View token (`viewToken`):** A 128-bit random base64url string stored per order. Required to view the confirmation page. Without it, knowing an order code alone is useless — defeats enumeration.
+**View token (`viewToken`):** A 128-bit random value, stored per order as a 32-character hex string (`randomBytes(16).toString("hex")`). Required to view the confirmation page and to poll `/api/order/status`. Without it, knowing an order code alone is useless — defeats enumeration.
 
 **Vercel Cron:** Vercel's built-in cron scheduler. Hits a configured route on a schedule with a Bearer token (`CRON_SECRET`). Used here for the weekly Mongo + Redis heartbeat.
 
@@ -711,7 +746,7 @@ There is no DB write — the menu is static. That's fine because the menu change
 
 1. Add the action button to `OrderCard.tsx`.
 2. Wire its `onClick` to a new `PATCH` against `/api/dashboard/orders/[orderId]`.
-3. Extend the handler in `app/api/dashboard/orders/[orderId]/route.ts` — validate the action via Zod, call `updateStatus(orderCode, newStatus)` (or a new helper).
+3. Extend the handler in `app/api/dashboard/orders/[orderId]/route.ts` — validate the action via Zod, call `updateOrder(orderCode, { orderStatus: newStatus })` (or a new helper).
 4. Add the new status to the state machine in `lib/types.ts` if needed.
 
 ### Rotate the staff dashboard password
@@ -743,7 +778,7 @@ Browser autoplay policy: audio elements can't play until the user has interacted
 
 **Order POST returns 503 "we're not accepting orders."**
 
-Either business hours (`lib/hours.ts`) or the staff-pause flag. Check the dashboard's pause control; if it's off, check the time vs the configured hours. Holidays are hand-maintained in `lib/hours.ts`.
+Either business hours (`lib/hours.ts`) or the staff-pause flag. Check the dashboard's pause control; if it's off, check the time vs the `HOURS_SCHEDULE` env var (or the built-in 11 AM – 11 PM fallback if unset). There's no separate holiday list — a one-off closure means setting that day to `closed` in `HOURS_SCHEDULE` for the deploy, or just using the staff pause toggle.
 
 **`Error: DASHBOARD_SESSION_SECRET is missing or too short`**
 
@@ -753,9 +788,9 @@ The env var either isn't set or is shorter than 16 chars. Set it in Vercel; rede
 
 Reactivate via the Atlas dashboard. Then check that `vercel.json` has the cron entry and `CRON_SECRET` is set in Vercel; without that, the weekly heartbeat doesn't run and Atlas will pause again in 30 days.
 
-**Every API endpoint returns 429 in production right after a deploy.**
+**Login, order-create, order-status, or contact endpoints return 429 in production right after a deploy.**
 
-The Upstash env vars aren't set, so `makeLimiter` is in prod fail-closed mode and refusing every rate-limited request by design. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel env, redeploy. (Dev still no-ops with a single boot warning from `instrumentation.ts`.)
+The Upstash env vars aren't set, so `makeLimiter` is in prod fail-closed mode and refusing every request on those four Redis-backed buckets by design. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel env, redeploy. (Dev still no-ops with a single boot warning from `instrumentation.ts`.) The dashboard read/write/search limiters and the public availability limiter are in-memory and unaffected by Upstash config either way.
 
 **Order code collision.**
 
@@ -763,7 +798,7 @@ The `POST /api/order` retries up to 3 times on `P2002`. If you see "Could not as
 
 **Confirmation page shows "Order not found."**
 
-Either the `id` or the `t` (viewToken) is wrong. The customer probably bookmarked an old URL or got a truncated link in their email. Look up the order in the dashboard; reissue a link manually if needed.
+Either the `orderId` or the `token` (viewToken) query param is wrong. The customer probably bookmarked an old URL or got a truncated link in their email. Look up the order in the dashboard; reissue a link manually if needed.
 
 **Dashboard list shows orders frozen in `acknowledged` after a deploy.**
 

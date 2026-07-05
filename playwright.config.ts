@@ -34,7 +34,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    // Runs every e2e/*.setup.ts: DB reset (wipe leftover menu overrides /
+    // orders from interrupted runs) + dashboard auth.
+    { name: "setup", testMatch: /\.setup\.ts$/ },
     {
       name: "chromium",
       dependencies: ["setup"],
@@ -49,7 +51,16 @@ export default defineConfig({
     url: BASE_URL,
     reuseExistingServer: false,
     timeout: 180_000,
-    // Override ONLY the database; everything else comes from .env.local.
-    env: { ...process.env, DATABASE_URL: TEST_DB ?? "" },
+    env: {
+      ...process.env,
+      // Override ONLY the database; everything else comes from .env.local.
+      DATABASE_URL: TEST_DB ?? "",
+      // Hard isolation: e2e runs must never send real customer emails or
+      // consume the production Upstash quota. Blank keys make email a warn-
+      // and-skip no-op and rate limiting the dev no-op limiter.
+      RESEND_API_KEY: "",
+      UPSTASH_REDIS_REST_URL: "",
+      UPSTASH_REDIS_REST_TOKEN: "",
+    },
   },
 });

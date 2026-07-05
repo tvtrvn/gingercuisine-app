@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { normalizeOrderCode } from "./orderCode";
 import {
@@ -269,7 +270,15 @@ export async function updateOrder(
     });
     return dbToOrder(record as unknown as OrderRecord);
   } catch (error) {
+    // P2025 = no order with that code — a true not-found. Anything else
+    // (connection loss, etc.) must surface as a server error, not a 404.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return undefined;
+    }
     console.error("[updateOrder] failed:", error);
-    return undefined;
+    throw error;
   }
 }

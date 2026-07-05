@@ -199,6 +199,20 @@ export function OrderCard({
             Undo · back to {undoTarget.label}
           </button>
         )}
+
+        {isCancelled && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onUpdateStatus(order.id, "new")}
+            className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={`Reopen cancelled order ${order.id} as new`}
+            data-testid="reopen-order"
+          >
+            <Undo2 className="h-3.5 w-3.5" aria-hidden />
+            Reopen as new
+          </button>
+        )}
       </div>
     </article>
   );

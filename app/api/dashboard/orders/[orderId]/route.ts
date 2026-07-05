@@ -77,12 +77,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const updated = await updateOrder(orderId, parsed.data);
-  if (!updated) {
+  let updated;
+  try {
+    updated = await updateOrder(orderId, parsed.data);
+  } catch (error) {
+    console.error("[/api/dashboard/orders/[orderId]] update failed:", error);
     return NextResponse.json(
-      { error: "Order not found or update failed." },
-      { status: 404 },
+      { error: "Something went wrong while updating the order." },
+      { status: 500 },
     );
+  }
+  if (!updated) {
+    return NextResponse.json({ error: "Order not found." }, { status: 404 });
   }
   return NextResponse.json({ order: updated });
 }

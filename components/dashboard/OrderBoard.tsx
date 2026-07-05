@@ -146,7 +146,9 @@ export function OrderBoard({
   }, [historyWindowHours]);
 
   useEffect(() => {
-    if (isSearchMode) return;
+    // Poll even while staff are searching — only the board RENDERING switches
+    // to search results. If polling stopped in search mode, a forgotten search
+    // box would silence the new-order chime/toast for every incoming order.
     // Kick an immediate fetch so the "Last sync" indicator (and any orders
     // placed between SSR and mount) populate within a few ms instead of
     // waiting a full poll interval.
@@ -162,7 +164,7 @@ export function OrderBoard({
       clearInterval(id);
       window.removeEventListener("focus", onFocus);
     };
-  }, [fetchOrders, pollIntervalMs, isSearchMode]);
+  }, [fetchOrders, pollIntervalMs]);
 
   useEffect(() => {
     if (!isSearchMode) {
@@ -205,17 +207,26 @@ export function OrderBoard({
       },
     ) => {
       setUpdatingId(orderId);
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, ...body } : o)),
-      );
-      setSearchResults((prev) =>
-        prev
+      // Snapshot pre-update state so a failed PATCH can roll the optimistic
+      // update back — the board must never keep showing a status the server
+      // never accepted.
+      let prevOrders: Order[] = [];
+      let prevSearch: Order[] | null = null;
+      let prevSelected: Order | null = null;
+      setOrders((prev) => {
+        prevOrders = prev;
+        return prev.map((o) => (o.id === orderId ? { ...o, ...body } : o));
+      });
+      setSearchResults((prev) => {
+        prevSearch = prev;
+        return prev
           ? prev.map((o) => (o.id === orderId ? { ...o, ...body } : o))
-          : prev,
-      );
-      setSelectedOrder((prev) =>
-        prev && prev.id === orderId ? { ...prev, ...body } : prev,
-      );
+          : prev;
+      });
+      setSelectedOrder((prev) => {
+        prevSelected = prev;
+        return prev && prev.id === orderId ? { ...prev, ...body } : prev;
+      });
 
       try {
         const res = await fetch(`/api/dashboard/orders/${orderId}`, {
@@ -238,12 +249,18 @@ export function OrderBoard({
         );
       } catch (err) {
         console.error("[OrderBoard] patch failed:", err);
-        if (!isSearchMode) fetchOrders();
+        setOrders(prevOrders);
+        setSearchResults(prevSearch);
+        setSelectedOrder(prevSelected);
+        setFetchError(
+          "Couldn’t update the order. Check the connection and try again.",
+        );
+        void fetchOrders();
       } finally {
         setUpdatingId(null);
       }
     },
-    [fetchOrders, isSearchMode],
+    [fetchOrders],
   );
 
   const handleUpdateStatus = useCallback(

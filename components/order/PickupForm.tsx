@@ -143,24 +143,26 @@ export function PickupForm({
         body: JSON.stringify(parsed.data),
       });
       if (!res.ok) {
-        // 503 from the server means hours/pause closed the window between
-        // the page render and the submit. Surface the server message instead
-        // of the generic error so customers see why.
-        if (res.status === 503) {
-          let serverMessage: string | null = null;
-          try {
-            const data = (await res.json()) as { error?: string };
-            if (typeof data?.error === "string") serverMessage = data.error;
-          } catch {
-            // ignore
-          }
-          setFormError(
-            serverMessage ??
-              "We're not accepting online orders right now. Please try again later.",
-          );
-          return;
+        // Surface the server's own message whenever it sends one: 503 hours/
+        // pause explanations, 400 pricing errors ("X is sold out."), and 429
+        // rate-limit text. A generic fallback hides exactly the information
+        // the customer needs to fix their order.
+        let serverMessage: string | null = null;
+        try {
+          const data = (await res.json()) as { error?: unknown };
+          if (typeof data?.error === "string") serverMessage = data.error;
+        } catch {
+          // ignore unparseable body
         }
-        throw new Error("Failed to place order.");
+        if (!serverMessage && res.status === 400) {
+          serverMessage =
+            "Please double-check your order details and try again.";
+        }
+        setFormError(
+          serverMessage ??
+            "Something went wrong while submitting your order. Please try again.",
+        );
+        return;
       }
       const data = await res.json();
       clearCart();

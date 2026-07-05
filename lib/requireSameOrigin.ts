@@ -9,9 +9,25 @@ import type { NextRequest } from "next/server";
  * This is intentionally simple and stateless — it complements the HttpOnly
  * SameSite=Lax dashboard session cookie and the per-order view token.
  */
+/**
+ * In production, anchor the check to the configured public site host instead
+ * of the inbound Host header (which is attacker-influenceable). Preview
+ * deploys and local dev keep Host-based matching so their own origins work.
+ */
+function configuredProductionHost(): string | null {
+  if (process.env.VERCEL_ENV !== "production") return null;
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!configured) return null;
+  try {
+    return new URL(configured).host;
+  } catch {
+    return null;
+  }
+}
+
 export function isSameOrigin(req: NextRequest): boolean {
-  const host = req.headers.get("host");
-  if (!host) return false;
+  const expectedHost = configuredProductionHost() ?? req.headers.get("host");
+  if (!expectedHost) return false;
 
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
@@ -27,7 +43,7 @@ export function isSameOrigin(req: NextRequest): boolean {
   for (const candidate of candidates) {
     try {
       const url = new URL(candidate);
-      if (url.host === host) return true;
+      if (url.host === expectedHost) return true;
     } catch {
       // ignore malformed header
     }

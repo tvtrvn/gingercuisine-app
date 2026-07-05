@@ -1,11 +1,30 @@
 import { z } from "zod";
 
 import { PHONE_DEFAULT_REGION } from "./config";
+import { HOURS_TIMEZONE } from "./hours";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type { MenuCategoryId } from "./types";
 
 const PICKUP_START_TIME = "11:30";
 const PICKUP_END_TIME = "22:45";
+
+// Strict HH:MM (24h). Without this, the lexical window comparison below lets
+// malformed strings like "1a:00" through because they happen to sort in-range.
+const PICKUP_TIME_FORMAT = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Current wall-clock time in the restaurant's timezone, as sortable "HH:MM". */
+function currentLocalHHMM(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: HOURS_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  // Some engines render midnight as "24" with hour12: false.
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return `${hour}:${get("minute")}`;
+}
 
 const MAX_CART_LINES = 50;
 const MAX_QTY_PER_LINE = 25;
@@ -65,11 +84,30 @@ export const pickupDetailsSchema = z.object({
       return;
     }
 
+    if (!PICKUP_TIME_FORMAT.test(value.pickupTime)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pickupTime"],
+        message: "Please choose a valid pickup time.",
+      });
+      return;
+    }
+
     if (value.pickupTime < PICKUP_START_TIME || value.pickupTime > PICKUP_END_TIME) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["pickupTime"],
         message: "Pickup time must be between 11:30 AM and 10:45 PM.",
+      });
+      return;
+    }
+
+    if (value.pickupTime < currentLocalHHMM()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pickupTime"],
+        message:
+          "That pickup time has already passed today. Pick a later time or choose ASAP.",
       });
     }
   }

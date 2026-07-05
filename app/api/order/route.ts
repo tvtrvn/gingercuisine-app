@@ -57,8 +57,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let json: unknown;
   try {
-    const json = await req.json();
+    json = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  try {
     const parsed = orderRequestSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json(
