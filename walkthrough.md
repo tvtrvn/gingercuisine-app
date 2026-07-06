@@ -8,7 +8,7 @@ A comprehensive guide for engineers (and the restaurant's future maintainer) who
 
 This is **the live pickup-ordering platform for Ginger Cuisine** — a family Vietnamese restaurant in Toronto. The app is in production at <https://gingercuisine.ca> (also served at gingercuisine.vercel.app), handling real customers and real (cash) money. Two surfaces share the same Next.js codebase:
 
-1. **Customer storefront** — `/`, `/menu`, `/about`, `/location`, `/contact`, `/order`, `/order/confirmation`. Customers browse the menu, build a cart, fill in pickup details, and submit a **pay-in-person** order. The server emails the customer a confirmation, generates a 6-character order code, and returns a confirmation page with a tokenized URL.
+1. **Customer storefront** — `/`, `/menu`, `/about`, `/location`, `/contact`, `/order`, `/order/confirmation`. Customers browse the menu, build a cart, fill in pickup details, and submit a **pay-in-person** order. The server generates a 6-character order code and returns a confirmation page with a tokenized URL, where customers track their order live. (An order-notification email fires too, but on the free sandbox sender it reaches only the owner — a deliberate $0-email choice; live tracking is the customer-facing notification.)
 
 2. **Staff tablet dashboard** — `/dashboard` (password-protected). Front-of-house staff watch incoming orders on a wall-mounted iPad: a sound alarm fires on each new order, cards animate in newest-first, status moves through `new → acknowledged → ready → completed` with one tap. A "Pause online ordering" toggle stops the storefront from accepting orders during a rush. Search lets staff look up older orders by name, phone, or code.
 
@@ -100,7 +100,7 @@ Defensive features that make this *production*:
 | Icons | **lucide-react** | SVG icons |
 | ORM | **Prisma 6** (MongoDB driver) | Type-safe DB access |
 | Database | **MongoDB Atlas (M0 free)** | Documents for orders + settings |
-| Email | **Resend** | Transactional confirmation emails |
+| Email | **Resend** | Owner order-notification emails (free sandbox sender — customers use live tracking) |
 | Rate limiting | **@upstash/ratelimit + @upstash/redis** | Sliding-window in Redis |
 | Validation | **Zod 3** | Request body validation |
 | Phone parsing | **libphonenumber-js** | Server-side phone normalization |
@@ -244,11 +244,12 @@ DASHBOARD_SESSION_SECRET=<random-32-byte-hex>   # 16+ chars required
 UPSTASH_REDIS_REST_URL=https://...upstash.io
 UPSTASH_REDIS_REST_TOKEN=...
 
-# Email (Resend). Local dev default is Resend's sandbox sender
-# (onboarding@resend.dev), which only delivers to the Resend account owner.
-# For real customer email, verify the domain in Resend first and use e.g.:
-#   RESEND_FROM_EMAIL=Ginger Cuisine <orders@gingercuisine.ca>
-#   RESEND_REPLY_TO=hello@gingercuisine.ca
+# Email (Resend). DELIBERATE free-tier choice: the sandbox sender
+# (onboarding@resend.dev) only delivers to the Resend account owner, so
+# order emails reach the owner but NOT customers — customers follow the
+# live order-tracking page instead. If that trade ever changes, verify
+# gingercuisine.ca in Resend (DKIM/SPF/DMARC) and switch to e.g.
+# RESEND_FROM_EMAIL=Ginger Cuisine <orders@gingercuisine.ca>.
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=onboarding@resend.dev
 
@@ -304,7 +305,7 @@ Every Monday, Vercel hits `/api/cron/heartbeat` with `Authorization: Bearer <CRO
 
 ### Resend
 
-- Verify the sending domain (DKIM, SPF, DMARC) in Resend before using a custom `RESEND_FROM_EMAIL`. As of 2026-07-05 local dev still uses Resend's sandbox sender (`onboarding@resend.dev`), which only delivers to the Resend account owner — check what production (Vercel env) uses and upgrade to a verified `gingercuisine.ca` sender for real customer delivery.
+- **Deliberate free-tier choice (confirmed 2026-07-05):** the app uses Resend's sandbox sender (`onboarding@resend.dev`), which only delivers to the Resend account owner. Customers do NOT get confirmation emails — they follow the live, token-gated order-tracking page instead. This keeps email at $0. If the trade ever changes, verify `gingercuisine.ca` in Resend (DKIM/SPF/DMARC) and switch `RESEND_FROM_EMAIL` to a custom sender.
 - Sandbox first: send to one whitelist email, then flip to verified-domain mode once DKIM passes.
 
 ### Upstash
@@ -773,7 +774,7 @@ Resurrect it as a separate concern: add a `paymentIntent` step *after* `createOr
 
 **Customer says "I never got the email."**
 
-Resend dashboard → check the order's recipient. Most common: the customer typo'd their email. Confirm with their phone number, then resend manually from the dashboard (or, ideally, add a "resend email" button — currently planned).
+Expected: customers don't receive emails by design (free sandbox sender delivers to the owner only). Point them to their confirmation link — the live tracking page is the customer-facing notification. If they lost the link, look the order up in the dashboard by name/phone/code and read them the status. Only revisit this if the Resend setup is ever upgraded to a verified `gingercuisine.ca` sender.
 
 **Dashboard sound chime doesn't fire.**
 
