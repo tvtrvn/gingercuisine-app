@@ -34,10 +34,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${inter.variable} ${geistMono.variable} font-sans bg-neutral-50 text-neutral-900 antialiased`}
-      >
+    // Font variables must live on <html>: @theme emits --font-sans at :root, and
+    // nested var() resolves in the DEFINING element's scope — body-scoped
+    // --font-inter is invisible there, so Inter silently fell back to system-ui
+    // in production (verified on the live site's shipped CSS, 2026-07-09).
+    <html lang="en" className={`${inter.variable} ${geistMono.variable}`}>
+      <body className="font-sans bg-neutral-50 text-neutral-900 antialiased">
         {children}
       </body>
     </html>
