@@ -50,6 +50,25 @@ This project is indexed by GitNexus as **gingercuisine-app** (1057 symbols, 2345
 - **Build / test:** `npm run dev` · `npm run build` (runs `prisma generate` then `next build`) · `npm run lint` · `npm test` (Vitest) · `npm run e2e` (Playwright).
 - **Do / don't:** Payment is always in person — never add an online payment step; server recomputes all prices and gates confirmation pages with per-order view tokens, so keep validation server-side. Global coding standards live in `~/.claude/CLAUDE.md`.
 
+## Operating protocol (post-Fable — added 2026-07-11)
+
+- **This is PRODUCTION** (gingercuisine.ca, real customers): the global **Fable Playbook**
+  (`~/.claude/rules/fable-playbook.md`) applies at its strictest — every change runs the
+  full loop (build → separate adversarial validator → orchestrator adjudication →
+  own-eyes QA at 375px/768px/desktop → merge), and a push to `main` IS a deploy, so
+  pushing requires explicit user authorization every time.
+- **Before asserting anything about production state**, check the auto-memory
+  `project_gingercuisine` first (real domain, env/deploy facts, accepted risks that must
+  not be re-flagged) — repo docs record code truth; that memory records ops truth.
+- **Known trap class in this stack** (bit both apps): Tailwind v4 `@theme` resolves
+  font/custom-property chains at `:root` — next/font variable classes must live on
+  `<html>`, and computed-style verification beats visual inspection (sans→sans fallbacks
+  are invisible). Verify fonts/colors via getComputedStyle, embeds via network requests
+  (an iframe with a 200-rect can still be frame-blocked and empty).
+- **Sibling project**: `allatone-app` shares this stack and ports many of these patterns
+  with upgrades (atomic audit log, guarded status transitions, DB-native menu) — when
+  fixing something here, check whether allatone solved it already, and vice versa.
+
 <!-- skills:start -->
 ## Available Skills
 
