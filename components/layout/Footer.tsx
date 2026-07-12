@@ -8,7 +8,9 @@ import Link from "next/link";
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-neutral-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 text-sm text-neutral-600 md:flex-row md:items-start md:justify-between md:px-6">
+      {/* Mobile bottom padding clears the fixed order-bar / cart-FAB band so
+          the last footer rows stay readable at full scroll. */}
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 pt-10 pb-28 text-sm text-neutral-600 md:flex-row md:items-start md:justify-between md:px-6 md:py-10">
         <div className="space-y-2">
           <p className="text-base font-semibold text-neutral-900">
             {RESTAURANT_NAME}

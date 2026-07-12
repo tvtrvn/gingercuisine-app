@@ -61,6 +61,11 @@ export default defineConfig({
       RESEND_API_KEY: "",
       UPSTASH_REDIS_REST_URL: "",
       UPSTASH_REDIS_REST_TOKEN: "",
+      // Deterministic hours: the order-placement specs skip themselves when
+      // the real Toronto clock says "closed", which silently drops the money
+      // path from any evening/CI run. Pin the test server to always-open.
+      HOURS_SCHEDULE: Array(7).fill("00:00-23:59").join(","),
+      LAST_ORDER_LEAD_MIN: "0",
     },
   },
 });
