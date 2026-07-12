@@ -1,13 +1,10 @@
-import { createHash } from "node:crypto";
-import { DASHBOARD_COOKIE_NAME } from "@/lib/dashboardAuth";
 import { searchOrders } from "@/lib/orderStore";
 import {
+  dashboardRateLimitKey,
   dashboardSearchRateLimit,
-  getClientIp,
   retryAfterSeconds,
 } from "@/lib/rateLimit";
 import { requireDashboardApi } from "@/lib/requireDashboardSession";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -20,12 +17,9 @@ export async function GET(req: NextRequest) {
   if (unauthorized) return unauthorized;
 
   // Rate-limit per session to keep search scans cheap.
-  const cookieStore = await cookies();
-  const session = cookieStore.get(DASHBOARD_COOKIE_NAME)?.value ?? "";
-  const key = session
-    ? `sess:${createHash("sha256").update(session).digest("hex").slice(0, 32)}`
-    : `ip:${getClientIp(req)}`;
-  const rl = await dashboardSearchRateLimit.limit(key);
+  const rl = await dashboardSearchRateLimit.limit(
+    await dashboardRateLimitKey(req),
+  );
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many searches. Please wait a moment." },

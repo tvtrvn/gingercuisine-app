@@ -1,4 +1,8 @@
-import { getOrderById, updateOrder } from "@/lib/orderStore";
+import {
+  getOrderById,
+  OrderStatusConflictError,
+  updateOrder,
+} from "@/lib/orderStore";
 import {
   dashboardRateLimitKey,
   dashboardReadRateLimit,
@@ -77,10 +81,20 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     );
   }
 
+  const { expectedStatus, ...fields } = parsed.data;
   let updated;
   try {
-    updated = await updateOrder(orderId, parsed.data);
+    updated = await updateOrder(orderId, fields, { expectedStatus });
   } catch (error) {
+    if (error instanceof OrderStatusConflictError) {
+      return NextResponse.json(
+        {
+          error: "This order was changed on another device.",
+          order: error.current,
+        },
+        { status: 409 },
+      );
+    }
     console.error("[/api/dashboard/orders/[orderId]] update failed:", error);
     return NextResponse.json(
       { error: "Something went wrong while updating the order." },

@@ -204,6 +204,7 @@ export function OrderBoard({
       orderId: string,
       body: {
         orderStatus?: OrderStatus;
+        expectedStatus?: OrderStatus;
       },
     ) => {
       setUpdatingId(orderId);
@@ -213,19 +214,23 @@ export function OrderBoard({
       let prevOrders: Order[] = [];
       let prevSearch: Order[] | null = null;
       let prevSelected: Order | null = null;
+      // expectedStatus is a write guard for the server, not order state — keep
+      // it out of the optimistic UI merge.
+      const optimistic =
+        body.orderStatus !== undefined ? { orderStatus: body.orderStatus } : {};
       setOrders((prev) => {
         prevOrders = prev;
-        return prev.map((o) => (o.id === orderId ? { ...o, ...body } : o));
+        return prev.map((o) => (o.id === orderId ? { ...o, ...optimistic } : o));
       });
       setSearchResults((prev) => {
         prevSearch = prev;
         return prev
-          ? prev.map((o) => (o.id === orderId ? { ...o, ...body } : o))
+          ? prev.map((o) => (o.id === orderId ? { ...o, ...optimistic } : o))
           : prev;
       });
       setSelectedOrder((prev) => {
         prevSelected = prev;
-        return prev && prev.id === orderId ? { ...prev, ...body } : prev;
+        return prev && prev.id === orderId ? { ...prev, ...optimistic } : prev;
       });
 
       try {
@@ -234,6 +239,34 @@ export function OrderBoard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
+        if (res.status === 409) {
+          // Another tablet changed this order first. The response carries the
+          // current row — sync to server truth instead of keeping our guess.
+          const conflict = (await res.json()) as { order?: Order };
+          if (conflict.order) {
+            const current = conflict.order;
+            setOrders((prev) =>
+              prev.map((o) => (o.id === current.id ? current : o)),
+            );
+            setSearchResults((prev) =>
+              prev
+                ? prev.map((o) => (o.id === current.id ? current : o))
+                : prev,
+            );
+            setSelectedOrder((prev) =>
+              prev && prev.id === current.id ? current : prev,
+            );
+          } else {
+            setOrders(prevOrders);
+            setSearchResults(prevSearch);
+            setSelectedOrder(prevSelected);
+            void fetchOrders();
+          }
+          setFetchError(
+            "This order was updated on another device — showing the latest state.",
+          );
+          return;
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { order: Order };
         setOrders((prev) =>
@@ -264,15 +297,15 @@ export function OrderBoard({
   );
 
   const handleUpdateStatus = useCallback(
-    (orderId: string, next: OrderStatus) => {
-      patchOrder(orderId, { orderStatus: next });
+    (orderId: string, next: OrderStatus, expectedStatus?: OrderStatus) => {
+      patchOrder(orderId, { orderStatus: next, expectedStatus });
     },
     [patchOrder],
   );
 
   const handleCancelOrder = useCallback(
-    (orderId: string) => {
-      patchOrder(orderId, { orderStatus: "cancelled" });
+    (orderId: string, expectedStatus?: OrderStatus) => {
+      patchOrder(orderId, { orderStatus: "cancelled", expectedStatus });
       setSelectedOrder(null);
     },
     [patchOrder],

@@ -27,6 +27,12 @@ export function FloatingCart() {
 
   const showMobileCheckoutSheet = isOrderPage && !isLg;
 
+  // The mobile StickyOrderButton (bottom-4, md:hidden) renders under the exact
+  // same condition. When it's up, lift the FAB above it so the two never stack
+  // in the bottom-right corner (one floater per corner). On md+ the sticky bar
+  // is hidden, so keep the tighter offset.
+  const stickyOrderBarVisible = itemCount === 0 && !isOrderPage;
+
   useEffect(() => {
     if (isLg) setCheckoutSheetOpen(false);
   }, [isLg, setCheckoutSheetOpen]);
@@ -68,14 +74,20 @@ export function FloatingCart() {
     <>
       {lastAddedMessage && (
         <div
-          className="fixed right-4 bottom-28 z-50 max-w-[min(92vw,20rem)] rounded-xl border border-brand-600/20 bg-brand-700 px-4 py-2.5 text-xs font-medium text-white shadow-lg md:bottom-20"
+          className={`fixed right-4 z-50 max-w-[min(92vw,20rem)] rounded-xl border border-brand-600/20 bg-brand-700 px-4 py-2.5 text-xs font-medium text-white shadow-lg md:bottom-20 ${
+            stickyOrderBarVisible ? "bottom-44" : "bottom-28"
+          }`}
           role="status"
         >
           {lastAddedMessage}
         </div>
       )}
 
-      <div className="fixed right-4 bottom-20 z-50 md:bottom-6">
+      <div
+        className={`fixed right-4 z-50 md:bottom-6 ${
+          stickyOrderBarVisible ? "bottom-32" : "bottom-20"
+        }`}
+      >
         <Button
           type="button"
           variant="primary"
@@ -94,14 +106,20 @@ export function FloatingCart() {
           }
         >
           Cart
-          <span className="ml-1 rounded-full bg-white/20 px-2 py-0.5 text-xs tabular-nums">
-            {itemCount}
-          </span>
+          {itemCount > 0 && (
+            <span className="ml-1 rounded-full bg-white/20 px-2 py-0.5 text-xs tabular-nums">
+              {itemCount}
+            </span>
+          )}
         </Button>
       </div>
 
       {popoverOpen && !showMobileCheckoutSheet && (
-        <div className="fixed right-4 bottom-36 z-50 w-[min(92vw,24rem)] rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl md:bottom-24">
+        <div
+          className={`fixed right-4 z-50 w-[min(92vw,24rem)] rounded-2xl border border-neutral-200 bg-white p-4 shadow-2xl md:bottom-24 ${
+            stickyOrderBarVisible ? "bottom-48" : "bottom-36"
+          }`}
+        >
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-neutral-900">Your cart</h3>
             <IconButton

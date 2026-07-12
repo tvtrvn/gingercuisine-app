@@ -30,15 +30,17 @@ export default function ContactPage() {
               {RESTAURANT_PHONE}
             </a>
           </p>
-          <p>
-            Email:{" "}
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              className="font-medium text-emerald-700 hover:text-emerald-800"
-            >
-              {CONTACT_EMAIL}
-            </a>
-          </p>
+          {CONTACT_EMAIL ? (
+            <p>
+              Email:{" "}
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="font-medium text-emerald-700 hover:text-emerald-800"
+              >
+                {CONTACT_EMAIL}
+              </a>
+            </p>
+          ) : null}
           <p className="text-xs text-neutral-600">
             For urgent order changes, please call the restaurant so we can
             update your ticket right away.

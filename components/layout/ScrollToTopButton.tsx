@@ -1,6 +1,8 @@
 "use client";
 
+import { useCart } from "@/components/cart/cart-context";
 import { ArrowUp } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 /**
@@ -12,6 +14,14 @@ import { useEffect, useState } from "react";
  */
 export function ScrollToTopButton() {
   const [visible, setVisible] = useState(false);
+  const { itemCount } = useCart();
+  const pathname = usePathname();
+
+  // The mobile StickyOrderButton renders when the cart is empty off /order.
+  // It shares the bottom edge with this button (bottom-4 vs bottom-20 left),
+  // so suppress "back to top" while the order bar is up — one floater per
+  // corner. On md+ the sticky bar is hidden and this button is welcome back.
+  const stickyOrderBarVisible = itemCount === 0 && pathname !== "/order";
 
   useEffect(() => {
     let frame = 0;
@@ -44,6 +54,8 @@ export function ScrollToTopButton() {
       // while invisible.
       tabIndex={visible ? 0 : -1}
       className={`fixed bottom-20 left-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-[var(--shadow-card-hover)] transition-all duration-200 hover:bg-neutral-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 md:bottom-6 ${
+        stickyOrderBarVisible ? "max-md:hidden" : ""
+      } ${
         visible
           ? "translate-y-0 opacity-100"
           : "pointer-events-none translate-y-2 opacity-0"

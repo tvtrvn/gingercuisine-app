@@ -44,6 +44,13 @@ export async function sendOrderEmail(order: Order) {
     return;
   }
 
+  if (!ORDER_NOTIFICATION_EMAIL) {
+    console.warn(
+      "[email] RESTAURANT_ORDER_EMAIL not set — skipping order email",
+    );
+    return;
+  }
+
   const itemsText = order.items
     .map((item) => {
       const unitPrice = item.unitPrice ?? item.price;
@@ -109,6 +116,13 @@ export async function sendContactEmail(input: ContactFormInput) {
   if (!resend) {
     console.warn(
       "[email] RESEND_API_KEY is not set. Contact emails will not be sent.",
+    );
+    return;
+  }
+
+  if (!CONTACT_EMAIL) {
+    console.warn(
+      "[email] RESTAURANT_CONTACT_EMAIL not set — skipping contact email",
     );
     return;
   }

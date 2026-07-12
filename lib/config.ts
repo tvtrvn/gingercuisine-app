@@ -49,13 +49,13 @@ export const PICKUP_READY_NOTICE =
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-export const ORDER_NOTIFICATION_EMAIL =
-  process.env.RESTAURANT_ORDER_EMAIL || "orders@example.com";
+export const ORDER_NOTIFICATION_EMAIL: string | undefined =
+  process.env.RESTAURANT_ORDER_EMAIL || undefined;
 
-export const CONTACT_EMAIL =
+export const CONTACT_EMAIL: string | undefined =
   process.env.NEXT_PUBLIC_RESTAURANT_CONTACT_EMAIL ||
   process.env.RESTAURANT_CONTACT_EMAIL ||
-  "contact@example.com";
+  undefined;
 
 /** Passed to libphonenumber-js for parsing/formatting (+ validation). Examples: `"CA"` (default), `"US"`. */
 export const PHONE_DEFAULT_REGION = (process.env

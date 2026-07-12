@@ -1,8 +1,10 @@
 import { useCart } from "@/components/cart/cart-context";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody } from "@/components/ui/Card";
-import { CURRENCY, PAY_IN_PERSON_NOTICE, PRICES_NOTICE } from "@/lib/config";
+import { CURRENCY, PAY_IN_PERSON_NOTICE } from "@/lib/config";
 import { formatCurrency } from "@/lib/utils";
+import { Minus, Plus } from "lucide-react";
+import { useState } from "react";
 
 export function CartSummary() {
   const {
@@ -16,6 +18,13 @@ export function CartSummary() {
     removeItem,
     duplicateItem,
   } = useCart();
+
+  // Which lines have their note field revealed. Lines that already carry a note
+  // are treated as open (see isNoteOpen) so an existing note is never hidden.
+  const [openNotes, setOpenNotes] = useState<Record<string, boolean>>({});
+  function isNoteOpen(id: string, hasNote: boolean) {
+    return openNotes[id] ?? hasNote;
+  }
 
   if (items.length === 0) {
     return (
@@ -78,48 +87,77 @@ export function CartSummary() {
                   </button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label
-                    className="text-xs font-medium text-neutral-600"
-                    htmlFor={`qty-${item.id}`}
-                  >
+                  <span className="text-xs font-medium text-neutral-600">
                     Qty
-                  </label>
-                  <input
-                    id={`qty-${item.id}`}
-                    type="number"
-                    min={1}
-                    inputMode="numeric"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      updateItemQuantity(item.id, Number(e.target.value) || 1)
-                    }
-                    className="h-10 w-16 rounded-lg border border-neutral-300 px-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
-                  />
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label="Decrease quantity"
+                      disabled={item.quantity <= 1}
+                      onClick={() =>
+                        updateItemQuantity(item.id, item.quantity - 1)
+                      }
+                      className="flex h-11 w-11 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Minus className="h-4 w-4" aria-hidden />
+                    </button>
+                    <span
+                      className="w-9 text-center text-sm font-semibold tabular-nums text-neutral-900"
+                      aria-live="polite"
+                    >
+                      {item.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Increase quantity"
+                      onClick={() =>
+                        updateItemQuantity(item.id, item.quantity + 1)
+                      }
+                      className="flex h-11 w-11 items-center justify-center rounded-lg border border-neutral-300 text-neutral-700 transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                    >
+                      <Plus className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label
-                    htmlFor={`notes-${item.id}`}
-                    className="mb-1.5 block text-xs font-medium text-neutral-600"
-                  >
-                    Notes (e.g. allergies, no cilantro)
-                  </label>
-                  <textarea
-                    id={`notes-${item.id}`}
-                    value={item.notes ?? ""}
-                    onChange={(e) => updateItemNotes(item.id, e.target.value)}
-                    rows={2}
-                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
-                  />
-                  <p className="mt-2 text-[11px] leading-relaxed text-neutral-500">
+                <div className="space-y-2">
+                  {isNoteOpen(item.id, !!item.notes) ? (
+                    <div>
+                      <label
+                        htmlFor={`notes-${item.id}`}
+                        className="mb-1.5 block text-xs font-medium text-neutral-600"
+                      >
+                        Notes (e.g. allergies, no cilantro)
+                      </label>
+                      <textarea
+                        id={`notes-${item.id}`}
+                        value={item.notes ?? ""}
+                        onChange={(e) =>
+                          updateItemNotes(item.id, e.target.value)
+                        }
+                        rows={2}
+                        className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenNotes((prev) => ({ ...prev, [item.id]: true }))
+                      }
+                      className="text-xs font-medium text-brand-800 underline underline-offset-2 hover:text-brand-900"
+                    >
+                      Add note
+                    </button>
+                  )}
+                  <p>
                     <button
                       type="button"
                       onClick={() => duplicateItem(item.id)}
-                      className="font-medium text-brand-800 underline underline-offset-2 hover:text-brand-900"
+                      className="text-[11px] font-medium text-brand-800 underline underline-offset-2 hover:text-brand-900"
                     >
-                      Add another with different notes
+                      Split one off for its own note
                     </button>
-                    {" — "}
-                    one unit splits off as a separate line (same price overall).
                   </p>
                 </div>
               </li>
@@ -156,7 +194,6 @@ export function CartSummary() {
               </span>
             </div>
           </div>
-          <p className="text-center text-[11px] text-neutral-500">{PRICES_NOTICE}</p>
         </div>
       </CardBody>
     </Card>

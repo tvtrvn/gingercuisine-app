@@ -10,8 +10,10 @@ import { formatCurrency } from "@/lib/utils";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { OrderStatusTracker } from "@/components/order/OrderStatusTracker";
 import { CopyOrderIdButton } from "@/components/order/CopyOrderIdButton";
+import { RecentOrdersList } from "@/components/order/RecentOrdersList";
 import { Card, CardBody } from "@/components/ui/Card";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, SearchX } from "lucide-react";
+import Link from "next/link";
 
 interface ConfirmationPageProps {
   searchParams: Promise<{ orderId?: string; token?: string }>;
@@ -36,6 +38,48 @@ export default async function ConfirmationPage({
     !!token &&
     timingSafeEqualStr(record.viewToken, token);
   const order = tokenOk ? record : undefined;
+
+  // Bad/expired token or missing params: the order can't be shown. Rendering
+  // the success header with an empty body reads as "your order vanished" — show
+  // an honest recovery card instead, plus this device's recent-orders links.
+  if (!order) {
+    return (
+      <div className="space-y-8">
+        <Card className="border-amber-200 bg-amber-50/60">
+          <CardBody className="space-y-4 p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <SearchX className="h-6 w-6" aria-hidden />
+              </div>
+              <div className="min-w-0 space-y-2">
+                <h1 className="text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">
+                  We couldn&apos;t load this order
+                </h1>
+                <p className="max-w-2xl text-sm leading-relaxed text-neutral-700">
+                  The link may be incomplete or expired. Please re-open the
+                  confirmation link from the device you ordered on — order
+                  status is tied to that link and stays on this device.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link
+                href="/order"
+                className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              >
+                Back to ordering
+              </Link>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Dashboard-independent: reads this device's remembered orders and
+            offers "View status" links so a mistyped/expired link isn't a
+            dead end. Renders nothing when there are none. */}
+        <RecentOrdersList />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

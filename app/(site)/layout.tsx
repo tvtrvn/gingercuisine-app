@@ -17,7 +17,11 @@ export default function SiteLayout({
     <CartProvider taxRate={TAX_RATE}>
       <div className="flex min-h-screen flex-col">
         <MainNav restaurantName={RESTAURANT_NAME} />
-        <main className="flex-1 pb-24 md:pb-8">
+        {/* Extra bottom padding on mobile keeps the fixed cart FAB (right-4,
+            ~bottom-20) and the sticky order bar (bottom-4) from ever resting on
+            top of real content — headings on /menu, trust copy on /. iOS home
+            indicator is cleared via env(safe-area-inset-bottom). */}
+        <main className="flex-1 pb-[calc(8rem+env(safe-area-inset-bottom))] md:pb-8">
           <div className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
             {children}
           </div>

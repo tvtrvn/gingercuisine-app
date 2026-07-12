@@ -3,7 +3,7 @@
 import type { OrderStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const POLL_INTERVAL_MS = 10_000;
 
@@ -28,6 +28,7 @@ export function OrderStatusTracker({
 }: OrderStatusTrackerProps) {
   const [status, setStatus] = useState<OrderStatusPayload>(initialStatus);
   const [visible, setVisible] = useState(true);
+  const doneRef = useRef(false);
 
   useEffect(() => {
     const onVisibility = () =>
@@ -38,12 +39,15 @@ export function OrderStatusTracker({
   }, []);
 
   useEffect(() => {
+    if (doneRef.current) return;
+
     const idRef: {
       current: ReturnType<typeof setInterval> | null;
     } = { current: null };
     let cancelled = false;
 
     async function tick() {
+      if (doneRef.current) return;
       if (!visible || cancelled) return;
 
       try {
@@ -59,6 +63,7 @@ export function OrderStatusTracker({
           data.orderStatus === "completed" ||
           data.orderStatus === "cancelled"
         ) {
+          doneRef.current = true;
           if (idRef.current) {
             clearInterval(idRef.current);
             idRef.current = null;

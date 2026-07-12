@@ -28,21 +28,17 @@ export interface RateLimitResult {
   reset: number; // ms since epoch
 }
 
-function isConfigured(): boolean {
+export function ratelimitConfigured(): boolean {
   return (
     !!process.env.UPSTASH_REDIS_REST_URL &&
     !!process.env.UPSTASH_REDIS_REST_TOKEN
   );
 }
 
-export function ratelimitConfigured(): boolean {
-  return isConfigured();
-}
-
 // Shared Redis instance (singleton)
 let _redis: Redis | null = null;
 function getRedis(): Redis | null {
-  if (!isConfigured()) return null;
+  if (!ratelimitConfigured()) return null;
   if (_redis) return _redis;
   _redis = new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL!,

@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/Badge";
 import { CURRENCY } from "@/lib/config";
-import { Order, OrderStatus } from "@/lib/types";
+import { ORDER_STATUS_ORDER, Order, OrderStatus } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Check, ChevronRight, Undo2 } from "lucide-react";
 import { ElapsedTime } from "./ElapsedTime";
@@ -12,23 +12,20 @@ interface OrderCardProps {
   order: Order;
   isNewUnacknowledged: boolean;
   onOpenDetails: (order: Order) => void;
-  onUpdateStatus: (orderId: string, next: OrderStatus) => void;
+  onUpdateStatus: (
+    orderId: string,
+    next: OrderStatus,
+    expectedStatus?: OrderStatus,
+  ) => void;
   disabled?: boolean;
 }
 
+// Derived from ORDER_STATUS_ORDER (["new","acknowledged","ready","completed","cancelled"])
+// so this can't drift from the canonical ordering. `cancelled` keeps its
+// original special-case value of -1 (it's a terminal, not a workflow step).
 function statusRank(status: OrderStatus): number {
-  switch (status) {
-    case "new":
-      return 0;
-    case "acknowledged":
-      return 1;
-    case "ready":
-      return 2;
-    case "completed":
-      return 3;
-    default:
-      return -1;
-  }
+  if (status === "cancelled") return -1;
+  return ORDER_STATUS_ORDER.indexOf(status);
 }
 
 const WORKFLOW_STEPS: { status: OrderStatus; label: string }[] = [
@@ -157,7 +154,7 @@ export function OrderCard({
                 key={step.status}
                 type="button"
                 disabled={disabled}
-                onClick={() => onUpdateStatus(order.id, step.status)}
+                onClick={() => onUpdateStatus(order.id, step.status, order.orderStatus)}
                 className={cn(
                   "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] font-bold uppercase leading-tight transition-colors duration-200 sm:text-[11px]",
                   done
@@ -191,7 +188,7 @@ export function OrderCard({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onUpdateStatus(order.id, undoTarget.status)}
+            onClick={() => onUpdateStatus(order.id, undoTarget.status, order.orderStatus)}
             className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={`Undo: revert order ${order.id} back to ${undoTarget.label}`}
           >
@@ -204,7 +201,7 @@ export function OrderCard({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onUpdateStatus(order.id, "new")}
+            onClick={() => onUpdateStatus(order.id, "new", order.orderStatus)}
             className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-[11px] font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={`Reopen cancelled order ${order.id} as new`}
             data-testid="reopen-order"

@@ -66,7 +66,7 @@ export function FeaturedSection({ items }: { items: MenuItem[] }) {
                         {item.vietnameseName}
                       </p>
                     )}
-                    <p className="line-clamp-3 text-sm leading-relaxed text-neutral-600">
+                    <p className="line-clamp-2 text-sm leading-relaxed text-neutral-600">
                       {item.description}
                     </p>
                     <p className="mt-auto pt-2 text-base font-semibold text-neutral-900">

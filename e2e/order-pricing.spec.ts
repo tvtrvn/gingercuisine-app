@@ -14,7 +14,11 @@ test("premium-default dish prices its base switches correctly on /menu", async (
   await expect(card).toBeVisible();
 
   // Default base (Pad Thai) — listed price, the +$1 already baked in.
+  // (The collapsed card shows the default price honestly, before customizing.)
   await expect(card.getByText("$18.95", { exact: false })).toBeVisible();
+
+  // Base-switch chips now live behind the per-card "Customize" disclosure.
+  await card.getByRole("button", { name: /Customize/ }).click();
 
   // Switch to a different premium base (Udon) — adds $1.
   await card.getByRole("button", { name: /Udon/ }).click();

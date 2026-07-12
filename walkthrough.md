@@ -328,7 +328,7 @@ The root layout sets the `<html lang="en">` shell, loads the two fonts (system s
 Pages:
 
 - `/` — Landing with hero, signature dishes, hours.
-- `/menu` — Browse by category. Hydrated with `data/menu.ts`; client-side filtering.
+- `/menu` — Browse by category. Hydrated with `data/menu.ts`; client-side filtering. Cards render collapsed (photo/name/price/description + one-tap "Add to cart" with defaults); size/protein/flavor chips and per-item notes live behind a per-card "Customize" disclosure (conditionally rendered, so the collapsed list sheds hundreds of DOM controls). On mobile the Search/Category/Dietary panel compacts to a search field + "Filters" toggle so dishes appear in the first viewport; the card grid stays single-column until `lg`.
 - `/about` — Family story + a `VideoEmbed`.
 - `/location` — Address, hours, embedded map.
 - `/contact` — `POST /api/contact` form.
@@ -376,7 +376,8 @@ Wraps Prisma. Key entrypoints:
 
 - **`createOrder({ orderCode, items, pickupDetails, subtotal, tax, total })`** — `randomBytes(16).toString("hex")` generates the 128-bit `viewToken` as a 32-char hex string; Prisma `prisma.order.create` writes the document.
 - **`listRecentAndActive({ windowHours, limit })`** — single Mongo find using the `orderStatus + createdAt DESC` composite index. Returns active orders (`new | acknowledged | ready`) regardless of age, plus any other orders within `windowHours`. Limit 500 so a slow night doesn't load a year of history.
-- **`updateOrder(orderCode, fields)`** — sets `orderStatus`/`paymentStatus`/`staffNote` and stamps the matching audit timestamp (`acknowledgedAt`, `readyAt`, etc.), clearing any "ahead" timestamps on a reverse transition. Old `"preparing"` documents (the deprecated status) are normalized to `"acknowledged"` on read via `normalizeOrderStatus`.
+- **`updateOrder(orderCode, fields, options?)`** — sets `orderStatus`/`paymentStatus`/`staffNote` and stamps the matching audit timestamp (`acknowledgedAt`, `readyAt`, etc.), clearing any "ahead" timestamps on a reverse transition. Old `"preparing"` documents (the deprecated status) are normalized to `"acknowledged"` on read via `normalizeOrderStatus`. When `options.expectedStatus` is supplied (the dashboard always sends the status the tablet saw), the write is an **atomic compare-and-set** via `updateMany` — it only lands if the row is still at that status (matching legacy `"preparing"` when the guard is `"acknowledged"`). A racing change from another tablet throws `OrderStatusConflictError` carrying the current row; the API maps it to **409 + the live order** so the client resyncs instead of silently overwriting (two tablets tapping Complete vs Cancel used to be last-write-wins).
+- **Corrupt-document resilience** — `dbToOrder` parses `itemsJson` through `parseItems`, which maps a corrupt/non-array blob to `[]` with a logged error instead of throwing, so one bad row can no longer 500 the entire board fetch or search.
 - **`getOrderById(id)`** — the lookup used by both the customer-facing status route and the confirmation page. Callers separately compare the returned `order.viewToken` against the caller-supplied token with `timingSafeEqualStr` (`lib/timingSafeString.ts`) so an attacker can't time-side-channel guess tokens by response timing.
 
 ### 7.8 `lib/orderingStatus.ts` + `lib/hours.ts` + `lib/restaurantSettings.ts` — the open/closed gate
@@ -472,7 +473,7 @@ The biggest single component in the codebase. Responsibilities:
 - Polls `GET /api/dashboard/orders` every `pollIntervalMs` (from `DASHBOARD_POLL_INTERVAL_MS`, default 10 seconds). On poll, diffs incoming vs current to detect new orders. Polling keeps running while staff are searching — only the *rendering* switches to search results, so a forgotten open search box can't silently suppress the new-order alarm.
 - New order detected → `useNewOrderAlarm` plays the chime (single-cycle, user-interaction-gated for browser autoplay policy), `NewOrderToast` slides in for 8s.
 - Renders cards in two sections: **Active** (new/acknowledged/ready) and **Recent** (completed/cancelled). Active updates with a layout animation.
-- Per-card actions (`Acknowledge`, `Ready`, `Complete`, `Cancel`) → `PATCH /api/dashboard/orders/<orderId>` with the new status. Optimistic UI: state updates locally, then sync from server on next poll. On API failure, the optimistic update (board, search results, and the open drawer) is rolled back and an inline error is shown.
+- Per-card actions (`Acknowledge`, `Ready`, `Complete`, `Cancel`) → `PATCH /api/dashboard/orders/<orderId>` with the new status **plus `expectedStatus`** (the status the tablet saw — the CAS guard above). Optimistic UI: state updates locally, then sync from server on next poll. On API failure, the optimistic update (board, search results, and the open drawer) is rolled back and an inline error is shown; on a **409 conflict** the board adopts the server-returned order and tells staff the order changed on another device.
 - Cancelled orders are not a hard dead end: `OrderCard` and `OrderDetailsDrawer` both surface a **"Reopen as new"** action that PATCHes the order back to `orderStatus: "new"`.
 - `OrderDetailsDrawer` opens on tap — shows full cart, customer name/phone, staff note edit.
 - `<PauseOrdersControl>` toggles the staff-pause flag; the change reflects immediately in the customer banner on next poll.
@@ -480,7 +481,7 @@ The biggest single component in the codebase. Responsibilities:
 
 ### 7.14 `components/cart/cart-context.tsx` — React Context cart
 
-Singleton context exposing `items`, `subtotal`, `tax`, `total`, `taxRate`, `itemCount`, `addItem`, `updateItemQuantity`, `updateItemNotes`, `removeItem`, `duplicateItem`, `clearCart`, plus `checkoutSheetOpen` for the mobile sheet. Live in memory only — closing the tab clears the cart, by design (no zombie carts to confuse customers). The provider wraps everything inside `app/(site)/layout.tsx`.
+Singleton context exposing `items`, `subtotal`, `tax`, `total`, `taxRate`, `itemCount`, `addItem`, `updateItemQuantity`, `updateItemNotes`, `removeItem`, `duplicateItem`, `clearCart`, plus `checkoutSheetOpen` for the mobile sheet. The cart persists to **sessionStorage** (key `gc_cart_v1`): a reload or accidental navigation no longer wipes a built order, while the original no-zombie-cart intent survives — sessionStorage is per-tab and dies with it, never crossing devices or sessions. Hydration happens in a mount effect (not the initial state, avoiding SSR mismatch) through `sanitizeStoredCart`, which validates shape, requires finite `quantity`/`unitPrice`, clamps quantity to 1–99, and clears the key on any parse failure. `clearCart` (after a successful order) empties the stored copy too. The provider wraps everything inside `app/(site)/layout.tsx`.
 
 Cart math runs client-side too for *display only*; the server re-prices on submit. So the customer sees a UI total while typing, but the dollars that get charged are computed authoritatively. `TAX_RATE` (from `lib/config.ts`) reads `process.env.TAX_RATE`, which is **not** inlined into client bundles — so the server layout passes the resolved `taxRate` prop into `<CartProvider>` explicitly, rather than letting the client fall back to the bundled default. This keeps the cart's displayed tax in sync with whatever rate the server will actually charge.
 
@@ -673,7 +674,7 @@ iPad                         Next.js                       MongoDB
 
 **Audit timestamp (`acknowledgedAt`, etc.):** A column set by the server when a status transition happens. Lets the dashboard show "ready 3 min ago" and supports later reporting on kitchen throughput.
 
-**Cart context (React):** The `CartProvider` exposing the in-memory cart via a `useCart()` hook. Cart is intentionally not persisted across tabs/sessions; closing the page loses it.
+**Cart context (React):** The `CartProvider` exposing the cart via a `useCart()` hook. Persisted per-tab in sessionStorage (survives reloads) but intentionally never across tabs, sessions, or devices; closing the tab loses it.
 
 **Composite index (Mongo):** An index spanning multiple fields, e.g., `(orderStatus, createdAt DESC)`. Lets the database serve "find all active orders, sorted newest first" without a sort step.
 
@@ -806,7 +807,15 @@ Either the `orderId` or the `token` (viewToken) query param is wrong. The custom
 
 **Dashboard list shows orders frozen in `acknowledged` after a deploy.**
 
-If you renamed a status enum, old documents may hold the previous string. The `normalizeOrderStatus` mapper in `orderStore.ts` is the safety net (currently maps deprecated `"preparing"` → `"acknowledged"`); add new mappings there as the state machine evolves.
+If you renamed a status enum, old documents may hold the previous string. The `normalizeOrderStatus` mapper in `orderStore.ts` is the safety net (currently maps deprecated `"preparing"` → `"acknowledged"`); add new mappings there as the state machine evolves. Note: guarded status writes (`expectedStatus`) also match the legacy spelling when guarding on `acknowledged`.
+
+**Staff tap a status button and see "This order was updated on another device."**
+
+Working as designed: two tablets acted on the same order within a poll interval; the compare-and-set guard rejected the stale write with a 409 and the board synced to the winning state. No action needed — re-tap if the new state still needs changing.
+
+**Dashboard board 500s / "Couldn't refresh orders" persistently.**
+
+One corrupt `itemsJson` document used to break every board fetch; `parseItems` now maps it to an empty-items order and logs `[orderStore] corrupt itemsJson on order <code>`. If you see that log, inspect/repair that document — the board itself keeps working.
 
 **Prisma client out of date.**
 

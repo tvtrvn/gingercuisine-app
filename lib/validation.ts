@@ -142,6 +142,9 @@ export const orderUpdateSchema = z
     orderStatus: orderStatusSchema.optional(),
     staffNote: z.string().max(500).optional(),
     paymentStatus: z.enum(["unpaid", "paid"]).optional(),
+    // Compare-and-set guard: the status the client saw when it issued the
+    // update. Not an update field — see the refine below.
+    expectedStatus: orderStatusSchema.optional(),
   })
   .refine(
     (v) =>

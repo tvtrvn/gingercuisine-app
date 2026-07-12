@@ -46,6 +46,23 @@ function normalizeOrderStatus(raw: string): OrderStatus {
   return raw as OrderStatus;
 }
 
+/**
+ * One corrupt document must not take down every list/search that maps over
+ * it — surface the order with empty items instead of throwing.
+ */
+function parseItems(orderCode: string, itemsJson: string): CartItem[] {
+  try {
+    const parsed: unknown = JSON.parse(itemsJson);
+    if (Array.isArray(parsed)) return parsed as CartItem[];
+  } catch {
+    // fall through
+  }
+  console.error(
+    `[orderStore] corrupt itemsJson on order ${orderCode}; rendering empty items`,
+  );
+  return [];
+}
+
 function dbToOrder(record: OrderRecord): Order {
   return {
     id: record.orderCode,
@@ -68,7 +85,7 @@ function dbToOrder(record: OrderRecord): Order {
       pickupTimeOption: record.pickupTimeOption as "asap" | "later",
       pickupTime: record.pickupTime ?? undefined,
     },
-    items: JSON.parse(record.itemsJson) as CartItem[],
+    items: parseItems(record.orderCode, record.itemsJson),
     totals: {
       subtotal: record.subtotal,
       tax: record.tax,
@@ -222,9 +239,30 @@ export interface UpdateOrderFields {
   staffNote?: string;
 }
 
+/**
+ * Two tablets acting on the same order within a poll interval used to race
+ * with last-write-wins (e.g. Complete vs Cancel). When the write is guarded,
+ * it only lands if the row is STILL at `expectedStatus`; a racing change
+ * surfaces as this error, carrying the current row so the caller can 409 and
+ * let the client resync instead of silently overwriting.
+ */
+export class OrderStatusConflictError extends Error {
+  constructor(public readonly current: Order) {
+    super(
+      `Order ${current.id} changed concurrently (now "${current.orderStatus}")`,
+    );
+    this.name = "OrderStatusConflictError";
+  }
+}
+
+export interface UpdateOrderOptions {
+  expectedStatus?: OrderStatus;
+}
+
 export async function updateOrder(
   orderCode: string,
   fields: UpdateOrderFields,
+  options?: UpdateOrderOptions,
 ): Promise<Order | undefined> {
   const code = normalizeOrderCode(orderCode);
   if (!code) return undefined;
@@ -261,6 +299,30 @@ export async function updateOrder(
     case "cancelled":
       data.cancelledAt = now;
       break;
+  }
+
+  const expected = options?.expectedStatus;
+  if (expected !== undefined) {
+    // Atomic compare-and-set: the write only lands if the row is still at the
+    // status the tablet saw. Legacy "preparing" docs surface as
+    // "acknowledged" (normalizeOrderStatus), so that guard matches both
+    // stored spellings.
+    const match =
+      expected === "acknowledged" ? ["acknowledged", "preparing"] : [expected];
+    const res = await prisma.order.updateMany({
+      where: { orderCode: code, orderStatus: { in: match } },
+      data,
+    });
+    const record = await prisma.order.findUnique({
+      where: { orderCode: code },
+    });
+    if (!record) return undefined;
+    if (res.count === 0) {
+      throw new OrderStatusConflictError(
+        dbToOrder(record as unknown as OrderRecord),
+      );
+    }
+    return dbToOrder(record as unknown as OrderRecord);
   }
 
   try {

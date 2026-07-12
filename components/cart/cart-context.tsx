@@ -8,10 +8,50 @@ import {
     ReactNode,
     useCallback,
     useContext,
+    useEffect,
     useMemo,
     useRef,
     useState,
 } from "react";
+
+/**
+ * sessionStorage (NOT localStorage) by design: a reload should keep the cart,
+ * but closing the tab / switching devices must NOT resurrect a stale "zombie"
+ * cart — pricing and availability can change between sessions. Bumped suffix
+ * (_v1) lets us invalidate old shapes on future schema changes.
+ */
+const CART_STORAGE_KEY = "gc_cart_v1";
+
+/**
+ * Defensively coerce a parsed sessionStorage blob back into CartItems. Anything
+ * we can't trust (wrong shape, non-array, hostile quantity) is dropped rather
+ * than trusted — the server re-prices every line on submit, but the client must
+ * not render garbage. Returns [] for any non-array input.
+ */
+function sanitizeStoredCart(raw: unknown): CartItem[] {
+  if (!Array.isArray(raw)) return [];
+  const clean: CartItem[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const e = entry as Record<string, unknown>;
+    if (
+      typeof e.id !== "string" ||
+      typeof e.menuItemId !== "string" ||
+      typeof e.name !== "string" ||
+      typeof e.quantity !== "number" ||
+      !Number.isFinite(e.quantity) ||
+      typeof e.unitPrice !== "number" ||
+      !Number.isFinite(e.unitPrice)
+    ) {
+      continue;
+    }
+    const quantity = Math.min(99, Math.max(1, Math.floor(e.quantity)));
+    // Preserve the rest of the line as-is; the fields above are the ones the
+    // UI and the order payload actually depend on.
+    clean.push({ ...(entry as CartItem), quantity });
+  }
+  return clean;
+}
 
 interface CartContextValue {
   items: CartItem[];
@@ -58,6 +98,46 @@ export function CartProvider({
   const [lastAddedMessage, setLastAddedMessage] = useState<string | null>(null);
   const [checkoutSheetOpen, setCheckoutSheetOpen] = useState(false);
   const clearMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Gates the persist effect: don't write the empty initial state to storage
+  // before the mount-time hydrate has had a chance to read it back.
+  const hydratedRef = useRef(false);
+
+  // Hydrate from sessionStorage AFTER mount (not in the useState initializer)
+  // so server and first client render both start empty — no hydration mismatch.
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(CART_STORAGE_KEY);
+      if (stored) {
+        const restored = sanitizeStoredCart(JSON.parse(stored));
+        // Intentional post-mount setState: hydrating in the useState initializer
+        // would diverge from the empty server render and cause a mismatch.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (restored.length > 0) setItems(restored);
+      }
+    } catch {
+      // Corrupt/unparseable blob: clear it so it can't wedge every future load.
+      try {
+        sessionStorage.removeItem(CART_STORAGE_KEY);
+      } catch {
+        // sessionStorage unavailable (private mode / disabled) — nothing to do.
+      }
+    }
+    hydratedRef.current = true;
+  }, []);
+
+  // Persist on every cart change once hydration has run.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      if (items.length === 0) {
+        sessionStorage.removeItem(CART_STORAGE_KEY);
+      } else {
+        sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      }
+    } catch {
+      // Storage unavailable or quota exceeded — cart still works in-memory.
+    }
+  }, [items]);
 
   const addItem = useCallback(
     (
@@ -145,7 +225,9 @@ export function CartProvider({
     setItems((prev) =>
       prev
         .map((item) =>
-          item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item,
+          item.id === id
+            ? { ...item, quantity: Math.min(99, Math.max(1, quantity)) }
+            : item,
         )
         .filter((item) => item.quantity > 0),
     );

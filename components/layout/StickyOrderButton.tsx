@@ -2,10 +2,16 @@
 
 import { useCart } from "@/components/cart/cart-context";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export function StickyOrderButton() {
   const { itemCount } = useCart();
+  const pathname = usePathname();
 
+  // Redundant on /order (the page IS the order flow — with an empty cart the
+  // bar would sit on the first card's size chips) and on /order/confirmation
+  // (the customer just ordered). Hide it on the whole /order subtree.
+  if (pathname.startsWith("/order")) return null;
   if (itemCount > 0) return null;
 
   return (

@@ -1,18 +1,14 @@
-import { createHash } from "node:crypto";
-import { DASHBOARD_COOKIE_NAME } from "@/lib/dashboardAuth";
 import { getOrderingAvailability } from "@/lib/orderingStatus";
 import {
   dashboardRateLimitKey,
   dashboardReadRateLimit,
   dashboardWriteRateLimit,
-  getClientIp,
   retryAfterSeconds,
 } from "@/lib/rateLimit";
 import { requireDashboardApi } from "@/lib/requireDashboardSession";
 import { isSameOrigin } from "@/lib/requireSameOrigin";
 import { setOrderingPause } from "@/lib/restaurantSettings";
 import { orderingPauseUpdateSchema } from "@/lib/validation";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -80,13 +76,9 @@ export async function POST(req: NextRequest) {
 
   // Same rate-limit bucket as other dashboard writes — toggling pause
   // counts as a normal staff action.
-  const cookieStore = await cookies();
-  const session = cookieStore.get(DASHBOARD_COOKIE_NAME)?.value ?? "";
-  const sessionKey = session
-    ? `sess:${createHash("sha256").update(session).digest("hex").slice(0, 32)}`
-    : `ip:${getClientIp(req)}`;
-
-  const rl = await dashboardWriteRateLimit.limit(sessionKey);
+  const rl = await dashboardWriteRateLimit.limit(
+    await dashboardRateLimitKey(req),
+  );
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many updates in a short time. Slow down a bit." },

@@ -35,6 +35,35 @@ function formatDigitsForDisplay(digits: string, region: CountryCode): string {
   return formatted;
 }
 
+/**
+ * Decide the next national-digit string from a tel <input> edit.
+ *
+ * AsYouType inserts formatting chars (spaces, parens). Backspacing one of THEM
+ * removes a non-digit, so `digitsFromTelInput(raw)` is unchanged vs the current
+ * `phoneDigits`. Naively treating "same digits + shorter string" as "delete the
+ * last digit" silently eats a digit whenever the user backspaces a formatting
+ * char mid-string (e.g. the space after ")"). Guard it: only fall back to
+ * dropping the last digit when the caret is at the END of the input — a genuine
+ * trailing backspace. Mid-string edits just re-format the existing digits.
+ */
+export function nextPhoneDigits(
+  raw: string,
+  prevDigits: string,
+  prevDisplay: string,
+  caretPos: number,
+): string {
+  const nextDigits = digitsFromTelInput(raw);
+  const caretAtEnd = caretPos === raw.length;
+  if (
+    caretAtEnd &&
+    nextDigits === prevDigits &&
+    raw.length < prevDisplay.length
+  ) {
+    return prevDigits.slice(0, -1);
+  }
+  return nextDigits;
+}
+
 interface PickupFormProps {
   onOrderCreated?: (orderId: string) => void;
   /**
@@ -244,15 +273,13 @@ export function PickupForm({
           value={phoneDisplayValue}
           onChange={(e) => {
             const raw = e.target.value;
-            const nextDigits = digitsFromTelInput(raw);
-            if (
-              nextDigits === phoneDigits &&
-              raw.length < phoneDisplayValue.length
-            ) {
-              setPhoneDigits(phoneDigits.slice(0, -1));
-            } else {
-              setPhoneDigits(nextDigits);
-            }
+            // selectionStart is the caret position after the browser applied the
+            // edit; null (rare) falls back to end-of-string so trailing deletes
+            // still work.
+            const caretPos = e.target.selectionStart ?? raw.length;
+            setPhoneDigits(
+              nextPhoneDigits(raw, phoneDigits, phoneDisplayValue, caretPos),
+            );
             clearFieldError("phone");
           }}
           error={fieldErrors.phone}

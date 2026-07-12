@@ -112,6 +112,23 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
 
   useScrollLock(checkoutSheetOpen && !isLg);
 
+  // Drive the bottom-sheet enter animation: mount at translate-y-full, then flip
+  // to translate-y-0 on the next frame so the CSS transition actually plays.
+  // Under prefers-reduced-motion the global CSS snaps transition-duration to
+  // ~0ms, so this collapses to an instant appear — no bespoke reduced-motion
+  // branch needed here.
+  const [sheetIn, setSheetIn] = useState(false);
+  useEffect(() => {
+    if (!(checkoutSheetOpen && !isLg)) {
+      // Reset so the next open replays the slide-in from translate-y-full.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSheetIn(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => setSheetIn(true));
+    return () => cancelAnimationFrame(raf);
+  }, [checkoutSheetOpen, isLg]);
+
   return (
     <div className="space-y-8">
       {checkoutSheetOpen && !isLg && (
@@ -121,12 +138,16 @@ export function OrderPageClient({ items: menuItems }: { items: MenuItem[] }) {
         >
           <button
             type="button"
-            className="absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity"
+            className={`absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity duration-200 ${
+              sheetIn ? "opacity-100" : "opacity-0"
+            }`}
             aria-label="Close checkout"
             onClick={() => setCheckoutSheetOpen(false)}
           />
           <div
-            className="relative mt-auto flex max-h-[92dvh] w-full flex-col rounded-t-2xl border border-neutral-200 bg-white shadow-2xl transition-transform duration-200 ease-out"
+            className={`relative mt-auto flex max-h-[92dvh] w-full flex-col rounded-t-2xl border border-neutral-200 bg-white shadow-2xl transition-transform duration-200 ease-out ${
+              sheetIn ? "translate-y-0" : "translate-y-full"
+            }`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-checkout-title"

@@ -11,8 +11,12 @@ import { OrderStatusBadge } from "./StatusBadge";
 interface Props {
   order: Order | null;
   onClose: () => void;
-  onUpdateStatus: (orderId: string, next: OrderStatus) => void;
-  onCancelOrder: (orderId: string) => void;
+  onUpdateStatus: (
+    orderId: string,
+    next: OrderStatus,
+    expectedStatus?: OrderStatus,
+  ) => void;
+  onCancelOrder: (orderId: string, expectedStatus?: OrderStatus) => void;
 }
 
 const WORKFLOW_STEPS: { status: OrderStatus; label: string }[] = [
@@ -50,8 +54,12 @@ function OrderDetailsPanel({
 }: {
   order: Order;
   onClose: () => void;
-  onUpdateStatus: (orderId: string, next: OrderStatus) => void;
-  onCancelOrder: (orderId: string) => void;
+  onUpdateStatus: (
+    orderId: string,
+    next: OrderStatus,
+    expectedStatus?: OrderStatus,
+  ) => void;
+  onCancelOrder: (orderId: string, expectedStatus?: OrderStatus) => void;
 }) {
   const [cancelConfirm, setCancelConfirm] = useState(false);
 
@@ -130,7 +138,7 @@ function OrderDetailsPanel({
                     <button
                       key={step.status}
                       type="button"
-                      onClick={() => onUpdateStatus(order.id, step.status)}
+                      onClick={() => onUpdateStatus(order.id, step.status, order.orderStatus)}
                       className={cn(
                         "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-[10px] font-bold uppercase leading-tight transition-colors duration-200 sm:text-[11px]",
                         done
@@ -152,7 +160,7 @@ function OrderDetailsPanel({
               {undoTarget && (
                 <button
                   type="button"
-                  onClick={() => onUpdateStatus(order.id, undoTarget.status)}
+                  onClick={() => onUpdateStatus(order.id, undoTarget.status, order.orderStatus)}
                   className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
                 >
                   <Undo2 className="h-3.5 w-3.5" aria-hidden />
@@ -173,7 +181,7 @@ function OrderDetailsPanel({
               </p>
               <button
                 type="button"
-                onClick={() => onUpdateStatus(order.id, "new")}
+                onClick={() => onUpdateStatus(order.id, "new", order.orderStatus)}
                 className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 hover:text-neutral-900"
                 data-testid="reopen-order-drawer"
               >
@@ -280,7 +288,7 @@ function OrderDetailsPanel({
                       size="sm"
                       className="bg-red-600 hover:bg-red-700"
                       onClick={() => {
-                        onCancelOrder(order.id);
+                        onCancelOrder(order.id, order.orderStatus);
                         setCancelConfirm(false);
                       }}
                     >

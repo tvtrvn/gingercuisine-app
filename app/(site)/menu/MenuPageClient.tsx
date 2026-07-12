@@ -20,7 +20,7 @@ import {
 } from "@/lib/types";
 import { computeUnitPrice } from "@/lib/pricing";
 import { cn, formatCurrency } from "@/lib/utils";
-import { ShoppingCart } from "lucide-react";
+import { ChevronDown, ShoppingCart, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { flyToCart } from "@/lib/flyToCart";
@@ -32,11 +32,26 @@ const dietaryTagLabels: Record<DietaryTag, string> = {
   vegan: "Vegan",
 };
 
+function hasOptions(item: MenuItem): boolean {
+  return (
+    (item.availableSizes?.length ?? 0) > 0 ||
+    (item.availableAddons?.length ?? 0) > 0 ||
+    (item.availableFlavors?.length ?? 0) > 0
+  );
+}
+
 export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
   const { addItem } = useCart();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<MenuCategoryId | "all">("all");
   const [tag, setTag] = useState<DietaryTag | "all">("all");
+  // Mobile-only disclosure for Category/Dietary; the sm+ panel is always shown.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Per-card "Customize" disclosure. A card's chips + notes only mount while
+  // its id is in this set, so collapsed cards keep a tiny DOM.
+  const [customizeOpen, setCustomizeOpen] = useState<Record<string, boolean>>(
+    {},
+  );
   const [selectedSizeByItem, setSelectedSizeByItem] = useState<
     Record<string, string>
   >({});
@@ -162,12 +177,13 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
         <PaperMenuModal />
       </header>
 
-      {/* Filters */}
+      {/* Filters. On mobile: a compact search + a "Filters" toggle that reveals
+          Category/Dietary. At sm+ all three sit in the 3-column panel. */}
       <section
         aria-label="Menu filters"
         className="rounded-2xl border border-neutral-200/80 bg-white p-4 shadow-[var(--shadow-card)] sm:p-5"
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="flex items-end gap-3 sm:hidden">
           <Input
             type="search"
             label="Search"
@@ -175,6 +191,44 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search dishes or ingredients…"
           />
+          <button
+            type="button"
+            aria-expanded={filtersOpen}
+            aria-controls="menu-filter-controls"
+            onClick={() => setFiltersOpen((open) => !open)}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2.5 text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1",
+              filtersOpen ||
+                category !== "all" ||
+                tag !== "all"
+                ? "border-brand-300 bg-brand-50 text-brand-900"
+                : "border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50",
+            )}
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden />
+            Filters
+          </button>
+        </div>
+
+        <div
+          id="menu-filter-controls"
+          className={cn(
+            "gap-4 sm:grid sm:grid-cols-3",
+            filtersOpen ? "mt-4 grid grid-cols-1" : "hidden",
+          )}
+        >
+          {/* Search is repeated in the sm+ grid so the desktop layout is
+              unchanged; it stays hidden on mobile where the compact search
+              above owns it. */}
+          <div className="hidden sm:block">
+            <Input
+              type="search"
+              label="Search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search dishes or ingredients…"
+            />
+          </div>
           <Select
             label="Category"
             value={category}
@@ -204,11 +258,12 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
         </div>
       </section>
 
-      {/* Sticky category jump nav */}
+      {/* Sticky category jump nav. Sits flush under the h-16 (64px) MainNav via
+          top-16; a 1px top border adds a hairline seam between the two bars. */}
       {visibleCategories.length > 1 && (
         <nav
           aria-label="Jump to category"
-          className="sticky top-16 z-30 -mx-4 overflow-x-auto border-y border-neutral-200/80 bg-neutral-50/95 px-4 py-2 backdrop-blur-sm sm:-mx-6 sm:px-6 md:top-16"
+          className="sticky top-16 z-30 -mx-4 overflow-x-auto border-y border-t-neutral-300 border-neutral-200/80 bg-neutral-50/95 px-4 py-2 backdrop-blur-sm sm:-mx-6 sm:px-6 md:top-16"
         >
           <ul className="flex min-w-0 gap-2 pb-1">
             {visibleCategories.map((cat) => (
@@ -236,7 +291,9 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
               key={cat.id}
               id={`cat-${cat.id}`}
               aria-label={cat.name}
-              className="scroll-mt-36 space-y-5"
+              // Combined sticky stack ≈ 64px (MainNav) + ~50px (jump nav) ≈ 114px;
+              // scroll-mt-32 (128px) lands a jumped-to heading fully below both.
+              className="scroll-mt-32 space-y-5"
             >
               <div>
                 <h2 className="text-xl font-semibold tracking-tight text-neutral-900">
@@ -253,9 +310,13 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                   </p>
                 )}
               </div>
-              <div className="grid gap-5 sm:grid-cols-2">
+              {/* Single column until lg so the horizontal cards get a full row
+                  (at 768px two columns squeezed names to one word per line). */}
+              <div className="grid gap-5 lg:grid-cols-2">
                 {items.map((item) => {
                   const itemSoldOut = item.available === false;
+                  const customizable = hasOptions(item);
+                  const isOpen = customizeOpen[item.id] === true;
                   return (
                   <Card
                     key={item.id}
@@ -302,178 +363,227 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                         <p className="text-xs leading-relaxed text-neutral-600 sm:text-sm">
                           {item.description}
                         </p>
-                        {item.availableSizes &&
-                          item.availableSizes.length > 0 && (
-                            <div>
-                              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                                Size
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {item.availableSizes.map((size) => {
-                                  const isSelected =
-                                    getSelectedSize(item)?.id === size.id;
-                                  return (
-                                    <button
-                                      key={size.id}
-                                      type="button"
-                                      disabled={size.soldOut}
-                                      onClick={() =>
-                                        setSelectedSizeByItem((prev) => ({
-                                          ...prev,
-                                          [item.id]: size.id,
-                                        }))
-                                      }
-                                      className={cn(
-                                        "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
-                                        size.soldOut
-                                          ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 line-through"
-                                          : isSelected
-                                            ? "border-brand-600 bg-brand-600 text-white"
-                                            : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-neutral-300",
-                                      )}
-                                    >
-                                      {size.label}
-                                      {size.priceDelta > 0
-                                        ? ` (+${formatCurrency(size.priceDelta)})`
-                                        : ""}
-                                      {size.soldOut ? " · Sold out" : ""}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        {item.availableFlavors &&
-                          item.availableFlavors.length > 0 && (
-                            <div>
-                              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                                Flavor
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {item.availableFlavors.map((flavor) => {
-                                  const isSelected =
-                                    getSelectedFlavor(item)?.id === flavor.id;
-                                  return (
-                                    <button
-                                      key={flavor.id}
-                                      type="button"
-                                      disabled={flavor.soldOut}
-                                      onClick={() =>
-                                        setSelectedFlavorByItem((prev) => ({
-                                          ...prev,
-                                          [item.id]: flavor.id,
-                                        }))
-                                      }
-                                      className={cn(
-                                        "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
-                                        flavor.soldOut
-                                          ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 line-through"
-                                          : isSelected
-                                            ? "border-brand-600 bg-brand-600 text-white"
-                                            : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-neutral-300",
-                                      )}
-                                    >
-                                      {flavor.name}
-                                      {flavor.price > 0
-                                        ? ` (+${formatCurrency(flavor.price)})`
-                                        : ""}
-                                      {flavor.soldOut ? " · Sold out" : ""}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        {item.availableAddons &&
-                          item.availableAddons.length > 0 && (
-                            <div>
-                              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                                Add-ons
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {item.availableAddons.map((addon) => {
-                                  const selectedIds =
-                                    selectedAddonsByItem[item.id] ?? [];
-                                  const isSelected =
-                                    selectedIds.includes(addon.id) &&
-                                    !addon.soldOut;
-                                  return (
-                                    <button
-                                      key={addon.id}
-                                      type="button"
-                                      disabled={addon.soldOut}
-                                      onClick={() =>
-                                        setSelectedAddonsByItem((prev) => {
-                                          const current = prev[item.id] ?? [];
-                                          const next = current.includes(
-                                            addon.id,
-                                          )
-                                            ? current.filter(
-                                                (id) => id !== addon.id,
-                                              )
-                                            : [...current, addon.id];
-                                          return { ...prev, [item.id]: next };
-                                        })
-                                      }
-                                      className={cn(
-                                        "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
-                                        addon.soldOut
-                                          ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 line-through"
-                                          : isSelected
-                                            ? "border-brand-500 bg-brand-50 text-brand-900 ring-1 ring-brand-200"
-                                            : "border-neutral-200 bg-white text-neutral-700 hover:border-brand-200",
-                                      )}
-                                    >
-                                      {addon.name} (+
-                                      {formatCurrency(addon.price)})
-                                      {addon.soldOut ? " · Sold out" : ""}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        <div>
-                          <label
-                            htmlFor={`notes-${item.id}`}
-                            className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-500"
+
+                        {/* Options + notes only mount when this card's
+                            Customize disclosure is open (conditional render,
+                            not CSS hide) so collapsed cards stay small. */}
+                        {customizable && isOpen && (
+                          <div
+                            id={`customize-${item.id}`}
+                            className="flex flex-col gap-3"
                           >
-                            Notes (optional)
-                          </label>
-                          <textarea
-                            id={`notes-${item.id}`}
-                            rows={2}
-                            placeholder="e.g. allergies, no cilantro, light sauce"
-                            value={notesByItem[item.id] ?? ""}
-                            onChange={(e) =>
-                              setNotesByItem((prev) => ({
-                                ...prev,
-                                [item.id]: e.target.value,
-                              }))
-                            }
-                            maxLength={300}
-                            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
-                          />
-                        </div>
+                            {item.availableSizes &&
+                              item.availableSizes.length > 0 && (
+                                <div>
+                                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                                    Size
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {item.availableSizes.map((size) => {
+                                      const isSelected =
+                                        getSelectedSize(item)?.id === size.id;
+                                      return (
+                                        <button
+                                          key={size.id}
+                                          type="button"
+                                          disabled={size.soldOut}
+                                          onClick={() =>
+                                            setSelectedSizeByItem((prev) => ({
+                                              ...prev,
+                                              [item.id]: size.id,
+                                            }))
+                                          }
+                                          className={cn(
+                                            "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
+                                            size.soldOut
+                                              ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 line-through"
+                                              : isSelected
+                                                ? "border-brand-600 bg-brand-600 text-white"
+                                                : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-neutral-300",
+                                          )}
+                                        >
+                                          {size.label}
+                                          {size.priceDelta > 0
+                                            ? ` (+${formatCurrency(size.priceDelta)})`
+                                            : ""}
+                                          {size.soldOut ? " · Sold out" : ""}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            {item.availableFlavors &&
+                              item.availableFlavors.length > 0 && (
+                                <div>
+                                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                                    Flavor
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {item.availableFlavors.map((flavor) => {
+                                      const isSelected =
+                                        getSelectedFlavor(item)?.id ===
+                                        flavor.id;
+                                      return (
+                                        <button
+                                          key={flavor.id}
+                                          type="button"
+                                          disabled={flavor.soldOut}
+                                          onClick={() =>
+                                            setSelectedFlavorByItem((prev) => ({
+                                              ...prev,
+                                              [item.id]: flavor.id,
+                                            }))
+                                          }
+                                          className={cn(
+                                            "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
+                                            flavor.soldOut
+                                              ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 line-through"
+                                              : isSelected
+                                                ? "border-brand-600 bg-brand-600 text-white"
+                                                : "border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-neutral-300",
+                                          )}
+                                        >
+                                          {flavor.name}
+                                          {flavor.price > 0
+                                            ? ` (+${formatCurrency(flavor.price)})`
+                                            : ""}
+                                          {flavor.soldOut ? " · Sold out" : ""}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            {item.availableAddons &&
+                              item.availableAddons.length > 0 && (
+                                <div>
+                                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                                    Add-ons
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {item.availableAddons.map((addon) => {
+                                      const selectedIds =
+                                        selectedAddonsByItem[item.id] ?? [];
+                                      const isSelected =
+                                        selectedIds.includes(addon.id) &&
+                                        !addon.soldOut;
+                                      return (
+                                        <button
+                                          key={addon.id}
+                                          type="button"
+                                          disabled={addon.soldOut}
+                                          onClick={() =>
+                                            setSelectedAddonsByItem((prev) => {
+                                              const current =
+                                                prev[item.id] ?? [];
+                                              const next = current.includes(
+                                                addon.id,
+                                              )
+                                                ? current.filter(
+                                                    (id) => id !== addon.id,
+                                                  )
+                                                : [...current, addon.id];
+                                              return {
+                                                ...prev,
+                                                [item.id]: next,
+                                              };
+                                            })
+                                          }
+                                          className={cn(
+                                            "rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors duration-200",
+                                            addon.soldOut
+                                              ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400 line-through"
+                                              : isSelected
+                                                ? "border-brand-500 bg-brand-50 text-brand-900 ring-1 ring-brand-200"
+                                                : "border-neutral-200 bg-white text-neutral-700 hover:border-brand-200",
+                                          )}
+                                        >
+                                          {addon.name} (+
+                                          {formatCurrency(addon.price)})
+                                          {addon.soldOut ? " · Sold out" : ""}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            <div>
+                              <label
+                                htmlFor={`notes-${item.id}`}
+                                className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-500"
+                              >
+                                Notes (optional)
+                              </label>
+                              <textarea
+                                id={`notes-${item.id}`}
+                                rows={2}
+                                placeholder="e.g. allergies, no cilantro, light sauce"
+                                value={notesByItem[item.id] ?? ""}
+                                onChange={(e) =>
+                                  setNotesByItem((prev) => ({
+                                    ...prev,
+                                    [item.id]: e.target.value,
+                                  }))
+                                }
+                                maxLength={300}
+                                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                              />
+                            </div>
+                          </div>
+                        )}
+
                         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap items-center gap-1">
                             {item.tags?.map((t) => (
-                              <Badge key={t} tone="success" className="text-[10px]">
+                              <Badge
+                                key={t}
+                                tone="success"
+                                className="text-[10px]"
+                              >
                                 {dietaryTagLabels[t]}
                               </Badge>
                             ))}
                           </div>
-                          <Button
-                            type="button"
-                            size="md"
-                            disabled={itemSoldOut}
-                            iconLeft={
-                              <ShoppingCart className="h-4 w-4" aria-hidden />
-                            }
-                            onClick={(e) => handleAddToCart(item, e)}
-                          >
-                            {itemSoldOut ? "Sold out" : "Add to cart"}
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {customizable && !itemSoldOut && (
+                              <button
+                                type="button"
+                                aria-expanded={isOpen}
+                                aria-controls={`customize-${item.id}`}
+                                onClick={() =>
+                                  setCustomizeOpen((prev) => ({
+                                    ...prev,
+                                    [item.id]: !prev[item.id],
+                                  }))
+                                }
+                                className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 transition-colors duration-200 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                              >
+                                Customize
+                                <ChevronDown
+                                  className={cn(
+                                    "h-3.5 w-3.5 transition-transform duration-200",
+                                    isOpen && "rotate-180",
+                                  )}
+                                  aria-hidden
+                                />
+                              </button>
+                            )}
+                            <Button
+                              type="button"
+                              size="md"
+                              disabled={itemSoldOut}
+                              iconLeft={
+                                <ShoppingCart
+                                  className="h-4 w-4"
+                                  aria-hidden
+                                />
+                              }
+                              onClick={(e) => handleAddToCart(item, e)}
+                            >
+                              {itemSoldOut ? "Sold out" : "Add to cart"}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardBody>
