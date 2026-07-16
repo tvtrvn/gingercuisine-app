@@ -328,7 +328,7 @@ The root layout sets the `<html lang="en">` shell, loads the two fonts (system s
 Pages:
 
 - `/` — Landing with hero, signature dishes, hours.
-- `/menu` — Browse by category. Hydrated with `data/menu.ts`; client-side filtering. Cards render collapsed (photo/name/price/description + one-tap "Add to cart" with defaults); size/protein/flavor chips and per-item notes live behind a per-card "Customize" disclosure (conditionally rendered, so the collapsed list sheds hundreds of DOM controls). On mobile the Search/Category/Dietary panel compacts to a search field + "Filters" toggle so dishes appear in the first viewport; the card grid stays single-column until `lg`.
+- `/menu` — Browse by category. Hydrated with `data/menu.ts`; client-side filtering. Cards render collapsed (photo/name/price/description + one-tap "Add to cart" with defaults); size/protein/flavor chips live behind a per-card "Customize" disclosure (conditionally rendered, so the collapsed list sheds hundreds of DOM controls). A free-text notes field ("no cilantro") lives in that same disclosure for every food meal item — even ones with no options, which show an "Add note" toggle instead of "Customize"; drinks, desserts, and sides carry no notes field (`allowsNotes` in MenuPageClient.tsx). On mobile the Search/Category/Dietary panel compacts to a search field + "Filters" toggle so dishes appear in the first viewport; the card grid stays single-column until `lg`.
 - `/about` — Family story + a `VideoEmbed`.
 - `/location` — Address, hours, embedded map.
 - `/contact` — `POST /api/contact` form.

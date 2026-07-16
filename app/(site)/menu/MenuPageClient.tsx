@@ -40,6 +40,19 @@ function hasOptions(item: MenuItem): boolean {
   );
 }
 
+// A free-text note ("no cilantro", "allergy") only makes sense on prepared
+// food. The owner asked to offer notes on every meal item — even ones with no
+// size/add-on options — while keeping them off drinks, desserts, and sides.
+const NON_MEAL_CATEGORIES = new Set<MenuCategoryId>([
+  "drinks",
+  "desserts",
+  "sides",
+]);
+
+function allowsNotes(item: MenuItem): boolean {
+  return !NON_MEAL_CATEGORIES.has(item.categoryId);
+}
+
 export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
   const { addItem } = useCart();
   const [search, setSearch] = useState("");
@@ -316,6 +329,10 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                 {items.map((item) => {
                   const itemSoldOut = item.available === false;
                   const customizable = hasOptions(item);
+                  const notesAllowed = allowsNotes(item);
+                  // Meal items with no options still get a disclosure — it just
+                  // holds the notes field.
+                  const hasDisclosure = customizable || notesAllowed;
                   const isOpen = customizeOpen[item.id] === true;
                   return (
                   <Card
@@ -365,9 +382,9 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                         </p>
 
                         {/* Options + notes only mount when this card's
-                            Customize disclosure is open (conditional render,
-                            not CSS hide) so collapsed cards stay small. */}
-                        {customizable && isOpen && (
+                            disclosure is open (conditional render, not CSS
+                            hide) so collapsed cards stay small. */}
+                        {hasDisclosure && isOpen && (
                           <div
                             id={`customize-${item.id}`}
                             className="flex flex-col gap-3"
@@ -508,28 +525,30 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                                   </div>
                                 </div>
                               )}
-                            <div>
-                              <label
-                                htmlFor={`notes-${item.id}`}
-                                className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-500"
-                              >
-                                Notes (optional)
-                              </label>
-                              <textarea
-                                id={`notes-${item.id}`}
-                                rows={2}
-                                placeholder="e.g. allergies, no cilantro, light sauce"
-                                value={notesByItem[item.id] ?? ""}
-                                onChange={(e) =>
-                                  setNotesByItem((prev) => ({
-                                    ...prev,
-                                    [item.id]: e.target.value,
-                                  }))
-                                }
-                                maxLength={300}
-                                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
-                              />
-                            </div>
+                            {notesAllowed && (
+                              <div>
+                                <label
+                                  htmlFor={`notes-${item.id}`}
+                                  className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-neutral-500"
+                                >
+                                  Notes (optional)
+                                </label>
+                                <textarea
+                                  id={`notes-${item.id}`}
+                                  rows={2}
+                                  placeholder="e.g. allergies, no cilantro, light sauce"
+                                  value={notesByItem[item.id] ?? ""}
+                                  onChange={(e) =>
+                                    setNotesByItem((prev) => ({
+                                      ...prev,
+                                      [item.id]: e.target.value,
+                                    }))
+                                  }
+                                  maxLength={300}
+                                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -546,7 +565,7 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                             ))}
                           </div>
                           <div className="flex items-center gap-2">
-                            {customizable && !itemSoldOut && (
+                            {hasDisclosure && !itemSoldOut && (
                               <button
                                 type="button"
                                 aria-expanded={isOpen}
@@ -559,7 +578,7 @@ export function MenuPageClient({ items: menuItems }: { items: MenuItem[] }) {
                                 }
                                 className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-neutral-700 transition-colors duration-200 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
                               >
-                                Customize
+                                {customizable ? "Customize" : "Add note"}
                                 <ChevronDown
                                   className={cn(
                                     "h-3.5 w-3.5 transition-transform duration-200",
