@@ -55,7 +55,7 @@ export const pickupDetailsSchema = z.object({
       const parsed = parsePhoneNumberFromString(val, PHONE_DEFAULT_REGION);
       if (!parsed?.isValid()) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: "Please enter a valid phone number.",
         });
       }
@@ -77,7 +77,7 @@ export const pickupDetailsSchema = z.object({
   if (value.pickupTimeOption === "later") {
     if (!value.pickupTime) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["pickupTime"],
         message: "Please choose a pickup time.",
       });
@@ -86,7 +86,7 @@ export const pickupDetailsSchema = z.object({
 
     if (!PICKUP_TIME_FORMAT.test(value.pickupTime)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["pickupTime"],
         message: "Please choose a valid pickup time.",
       });
@@ -95,7 +95,7 @@ export const pickupDetailsSchema = z.object({
 
     if (value.pickupTime < PICKUP_START_TIME || value.pickupTime > PICKUP_END_TIME) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["pickupTime"],
         message: "Pickup time must be between 11:30 AM and 10:45 PM.",
       });
@@ -104,7 +104,7 @@ export const pickupDetailsSchema = z.object({
 
     if (value.pickupTime < currentLocalHHMM()) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["pickupTime"],
         message:
           "That pickup time has already passed today. Pick a later time or choose ASAP.",
@@ -247,7 +247,7 @@ export const customItemSchema = z
     ] as const) {
       if (arr && !hasUniqueIds(arr)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: [key],
           message: "Option ids must be unique.",
         });
@@ -258,7 +258,7 @@ export const customItemSchema = z
       !(v.availableSizes ?? []).some((s) => s.id === v.defaultSizeId)
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["defaultSizeId"],
         message: "Default size must be one of the available sizes.",
       });
