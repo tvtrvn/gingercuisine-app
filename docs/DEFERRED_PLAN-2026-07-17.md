@@ -64,4 +64,16 @@ user re-authorizes at that point).
 
 ## Slice log (append as executed)
 
-_(empty — loop not started)_
+- **S1 SHIPPED** (2026-07-17): in-range drift (tailwind 4.3.3, libphonenumber
+  1.13.9, lucide 1.25). @types/node RE-TARGETED: stays 20 to match the actual
+  Node runtime (local v20.20.0, no engines pin) — types for unreleased Node 26
+  would be wrong, not fresh. Item closed.
+- **S4 SHIPPED as security slice** (2026-07-17): next 16.2.10 + react/react-dom
+  19.2.7 + eslint-config-next 16.2.10 — clears all ~19 next advisories. Full
+  gate green incl. e2e 23/23, computed-style font check, image naturalWidth.
+  Residual accepted risk: next's vendored postcss<8.5.10 (build-time, own CSS
+  only; clears when Next bumps).
+  **ESLint 10 BLOCKED-WITH-EVIDENCE**: eslint-plugin-react 7.37.5 (latest
+  upstream, vendored by config-next) uses removed context.getFilename() and
+  peers eslint ≤ ^9.7 — no ESLint-10 support exists in the ecosystem yet.
+  Reverted to eslint 9.39.5. Recheck when eslint-plugin-react peers ^10.
