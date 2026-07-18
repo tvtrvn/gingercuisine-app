@@ -7,12 +7,13 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
-      // 2026-07-12: a react-hooks plugin minor bump escalated this rule from
-      // warn to error, flagging 5 long-standing mount-bootstrap/reset effects
-      // (OrderBoard, PauseOrdersControl, useOrderingAvailability). Restore the
-      // baseline severity; restructuring those effects is tracked in
-      // docs/AUDIT-2026-07-11.md deferred work.
-      "react-hooks/set-state-in-effect": "warn",
+      // 2026-07-17: at error severity so NEW set-state-in-effect mistakes are
+      // hard failures. The 5 long-standing mount-bootstrap/portal-flag/reset
+      // effects (OrderBoard, PauseOrdersControl, useOrderingAvailability) are
+      // vetted legitimate patterns and carry per-line justified disables —
+      // restructuring them was judged worse than the disease (see
+      // docs/DEFERRED_PLAN-2026-07-17.md S2).
+      "react-hooks/set-state-in-effect": "error",
     },
   },
   // Override default ignores of eslint-config-next.

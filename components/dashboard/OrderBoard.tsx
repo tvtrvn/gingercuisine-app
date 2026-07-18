@@ -152,6 +152,9 @@ export function OrderBoard({
     // Kick an immediate fetch so the "Last sync" indicator (and any orders
     // placed between SSR and mount) populate within a few ms instead of
     // waiting a full poll interval.
+    // Poll bootstrap: fetchOrders flips the isFetching flag synchronously;
+    // one extra mount render is the accepted cost of an immediate first sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchOrders();
     // Skip polling while the tab is hidden (backgrounded tablet) — the focus
     // listener refetches the moment it's foregrounded again.
@@ -168,6 +171,9 @@ export function OrderBoard({
 
   useEffect(() => {
     if (!isSearchMode) {
+      // Reset is coupled to the DEBOUNCED search value, so it can't live in
+      // the input handler without re-implementing the debounce.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchResults(null);
       setSearchError(null);
       setSearchTruncated(false);

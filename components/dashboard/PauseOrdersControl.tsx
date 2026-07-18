@@ -49,6 +49,8 @@ export function PauseOrdersControl({
   // `fixed inset-0` actually means the full viewport.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    // SSR-safe portal gate: the modal can only render after the client mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -84,6 +86,8 @@ export function PauseOrdersControl({
     if (dialogOpen) {
       requestAnimationFrame(() => reasonInputRef.current?.focus());
     } else {
+      // Clears the stale error on EVERY close path (X, backdrop, Escape).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(null);
     }
   }, [dialogOpen]);

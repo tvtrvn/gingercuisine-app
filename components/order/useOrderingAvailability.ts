@@ -81,6 +81,9 @@ export function useOrderingAvailability(
   }, [url]);
 
   useEffect(() => {
+    // Poll bootstrap: immediate first availability check on mount, same
+    // accepted pattern as the dashboard board poll.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchAvailability();
     const id = setInterval(() => {
       // Don't poll a backgrounded tab; the focus listener refetches on return.
