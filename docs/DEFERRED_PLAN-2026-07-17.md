@@ -77,3 +77,38 @@ user re-authorizes at that point).
   upstream, vendored by config-next) uses removed context.getFilename() and
   peers eslint ≤ ^9.7 — no ESLint-10 support exists in the ecosystem yet.
   Reverted to eslint 9.39.5. Recheck when eslint-plugin-react peers ^10.
+- **S2 SHIPPED** (2026-07-17): `react-hooks/set-state-in-effect` at ERROR; the
+  5 vetted legacy effects carry per-line justified disables (restructuring
+  judged worse than the disease — poll bootstraps, portal gate, debounce-
+  coupled reset). Every future violation is a hard failure.
+- **S3 SHIPPED** (2026-07-17): resend 6.17.2. Surface (send{from,to,subject,
+  text}) unchanged across v4→v6; bonus fix: both senders now log the {error}
+  envelope the SDK returns instead of silently swallowing API failures.
+- **S5 SHIPPED** (2026-07-17): zod 4.4.3. Zero source changes required (compat
+  layer); customer-visible default text verified empirically (only change:
+  "Invalid email address"); ZodIssueCode.custom → "custom" literals ×7.
+  superRefine/.email()/.flatten() stay on maintained compat.
+- **S6 NO-GO — Prisma stays 6.19.x (2026-07-17), airtight evidence**: Prisma 7
+  removed `url` from schema datasources; the generated MONGO client's
+  constructor accepts ONLY `adapter: SqlDriverAdapterFactory` (SQL-only type)
+  or `accelerateUrl` (paid hosted proxy — against this app's $0-infra design).
+  `@prisma/adapter-mongodb` does not exist on npm (404); all published
+  adapters are SQL (pg, mariadb, libsql, neon, better-sqlite3). There is NO
+  MongoDB connection path in the v7 runtime. Attempt fully reverted (working
+  tree byte-identical to S5 commit). Recheck if Prisma ships a Mongo driver
+  adapter; until then Prisma 6 (still maintained) is correct, not stale.
+- **TS 7 timebox: NOT ATTEMPTED — closed as out-of-value** (2026-07-17):
+  with ESLint 10 blocked by the ecosystem and typescript-eslint/config-next
+  pinning the toolchain, a TS 7 (native compiler) bump has the same ecosystem
+  wall with zero runtime payoff on a Vercel-built app. Revisit when
+  eslint-config-next declares support for both.
+
+## FINAL STATE (loop complete 2026-07-17)
+
+Every deferred item is SHIPPED or BLOCKED-WITH-EVIDENCE. `npm outdated`
+majors remaining = prisma/@prisma/client 7.x (documented NO-GO), eslint 10
+(documented block), typescript 7 / @types/node 26 (documented out-of-value /
+runtime-mismatch). npm audit: one moderate — next's vendored postcss,
+build-time only, accepted. Lint rule at error. Gate green at branch tip.
+Deploys: #1 (S1+S4 security) shipped 2026-07-17; #2 (S2+S3+S5) pending user
+authorization. No Prisma deploy needed (no change).
