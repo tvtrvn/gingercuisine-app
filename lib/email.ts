@@ -103,12 +103,17 @@ export async function sendOrderEmail(order: Order) {
     .filter(Boolean)
     .join("\n");
 
-  await resend.emails.send({
+  // The SDK reports API failures via `error`, it does not throw — an
+  // unchecked call would swallow them silently.
+  const { error } = await resend.emails.send({
     from: `${RESTAURANT_NAME} Orders <${resendFromEmail}>`,
     to: ORDER_NOTIFICATION_EMAIL,
     subject: `New online order: ${order.id}`,
     text: body,
   });
+  if (error) {
+    console.error(`[email] order email failed for ${order.id}:`, error);
+  }
 }
 
 // Sends a copy of the contact form to the restaurant.
@@ -138,10 +143,13 @@ export async function sendContactEmail(input: ContactFormInput) {
     sanitizeMultiLine(input.message),
   ].join("\n");
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: `${RESTAURANT_NAME} Website <${resendContactFromEmail}>`,
     to: CONTACT_EMAIL,
     subject: `New contact form message from ${safeName}`,
     text: body,
   });
+  if (error) {
+    console.error("[email] contact email failed:", error);
+  }
 }
